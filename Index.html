@@ -1,0 +1,748 @@
+<script type="text/javascript">
+  // Encapsulate global variables in an object to avoid pollution
+  const gkFileManager = {
+    isXlsx: false,
+    xlsxFileLookup: {},
+    fileData: {},
+  };
+
+  function filledCell(cell) {
+    return cell !== '' && cell != null;
+  }
+
+  function loadFileData(filename) {
+    if (!window.XLSX) {
+      console.error('XLSX library not loaded');
+      return '';
+    }
+    if (gkFileManager.isXlsx && gkFileManager.xlsxFileLookup[filename]) {
+      try {
+        const workbook = XLSX.read(gkFileManager.fileData[filename], { type: 'base64' });
+        const firstSheetName = workbook.SheetNames[0] || null;
+        if (!firstSheetName) {
+          console.error('No sheets found in workbook');
+          return '';
+        }
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+        const filteredData = jsonData.filter(row => row.some(filledCell));
+        if (filteredData.length === 0) {
+          console.error('No valid data in file');
+          return '';
+        }
+        // Improved header row detection: check for maximum filled cells or use first row
+        let headerRowIndex = 0;
+        let maxFilledCells = 0;
+        filteredData.forEach((row, index) => {
+          const filledCount = row.filter(filledCell).length;
+          if (filledCount > maxFilledCells) {
+            maxFilledCells = filledCount;
+            headerRowIndex = index;
+          }
+        });
+        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)));
+        return csv;
+      } catch (e) {
+        console.error('Error processing XLSX file:', e);
+        return '';
+      }
+    }
+    return gkFileManager.fileData[filename] || '';
+  }
+</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.0 Mini App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      background: #000000;
+    }
+    .rotating-border {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .rotating-border::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border-radius: 50%;
+      background: linear-gradient(90deg, #fff, transparent);
+      animation: rotateBorder 2s linear infinite;
+      z-index: -1;
+    }
+    @keyframes rotateBorder {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .zoom-animation {
+      animation: zoomInOut 3s ease-in-out 2;
+    }
+    @keyframes zoomInOut {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.5); }
+      100% { transform: scale(1); }
+    }
+    .cylindrical-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #555, #333);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 -2px 4px rgba(255, 255, 255, 0.2);
+    }
+    .ziz-zizz-circle {
+      position: relative;
+      display: inline-block;
+    }
+    .ziz-zizz-circle::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 50%;
+      border: 2px dashed currentColor;
+      animation: rotateZizZizz 3s linear infinite, pulseZizZizz 0.5s ease-in-out infinite alternate;
+      z-index: -1;
+    }
+    @keyframes rotateZizZizz {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulseZizZizz {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="error" className="hidden text-red-500 text-center p-4">
+    <span id="error-message"></span>
+    <button onclick="window.location.reload()" className="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library. Please check your internet connection.')"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script. Please check your internet connection.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" onerror="showError('Failed to load React. Please check your internet connection.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" onerror="showError('Failed to load ReactDOM. Please check your internet connection.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js" onerror="showError('Failed to load Babel. Please check your internet connection.')"></script>
+  <script>
+    function showError(message) {
+      console.error('Error:', message);
+      const errorDiv = document.getElementById('error');
+      if (errorDiv) {
+        document.getElementById('error-message').innerText = message;
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    const safeLocalStorage = {
+      getItem(key, defaultValue) {
+        try {
+          const value = localStorage.getItem(key);
+          return value !== null ? JSON.parse(value) : defaultValue;
+        } catch (e) {
+          console.error(`Error reading ${key} from localStorage:`, e);
+          return defaultValue;
+        }
+      },
+      setItem(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.error(`Error writing ${key} to localStorage:`, e);
+        }
+      },
+    };
+
+    function sanitizeInitData(initData) {
+      if (!initData || typeof initData !== 'object') return { username: 'Guest', id: 'unknown' };
+      const { username, id } = initData;
+      return {
+        username: typeof username === 'string' ? username.replace(/[<>&]/g, '') : 'Guest',
+        id: typeof id === 'string' || typeof id === 'number' ? String(id).replace(/[<>&]/g, '') : 'unknown',
+      };
+    }
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, Component } = React;
+
+    class ErrorBoundary extends Component {
+      state = { hasError: false, error: null };
+
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="text-red-500 text-center p-4">
+              <p>Something went wrong: {this.state.error.message}</p>
+              <button onClick={() => window.location.reload()} className="bg-gray-300 text-black px-2 py-1 rounded">
+                Retry
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    function IntroScreen({ onComplete }) {
+      useEffect(() => {
+        const timer = setTimeout(() => {
+          safeLocalStorage.setItem('introShown', 'true');
+          onComplete();
+        }, 3000);
+        return () => clearTimeout(timer);
+      }, [onComplete]);
+
+      return (
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <h1 className="text-6xl font-bold text-white zoom-animation">2.0</h1>
+        </div>
+      );
+    }
+
+    function AirdropCriteriaModal({ isOpen, onClose, onConnectWallet, onJoinChannel, onInviteFriend, walletConnected, joinChannelCompleted, inviteFriendCompleted }) {
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#181818] rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Airdrop Criteria</h2>
+              <button
+                onClick={onClose}
+                className="text-white"
+                aria-label="Close airdrop criteria modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Close</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Connect Wallet</span>
+                <button
+                  onClick={onConnectWallet}
+                  disabled={walletConnected}
+                  className={`cylindrical-button ziz-zizz-circle p-2 ${walletConnected ? 'bg-[#181818]' : 'bg-white text-black'}`}
+                  aria-label={walletConnected ? 'Wallet connected' : 'Connect wallet'}
+                >
+                  {walletConnected ? '☑️' : 'Go'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Join 2.0$ Channel</span>
+                <button
+                  onClick={onJoinChannel}
+                  disabled={joinChannelCompleted}
+                  className={`cylindrical-button ziz-zizz-circle p-2 ${joinChannelCompleted ? 'bg-[#181818]' : 'bg-white text-black'}`}
+                  aria-label={joinChannelCompleted ? 'Channel joined' : 'Join 2.0$ Channel'}
+                >
+                  {joinChannelCompleted ? '☑️' : 'Go'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Invite 1 Friend</span>
+                <button
+                  onClick={onInviteFriend}
+                  disabled={inviteFriendCompleted}
+                  className={`cylindrical-button ziz-zizz-circle p-2 ${inviteFriendCompleted ? 'bg-[#181818]' : 'bg-white text-black'}`}
+                  aria-label={inviteFriendCompleted ? 'Friend invited' : 'Invite a friend'}
+                >
+                  {inviteFriendCompleted ? '☑️' : 'Go'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function TwoPointZeroApp() {
+      const defaultTasks = [
+        { id: 1, name: "Join 2.0$ Channel", reward: 1000, completed: false },
+        { id: 2, name: "Follow on X", reward: 500, completed: false },
+        { id: 3, name: "Daily Check-In", reward: 200, completed: false },
+      ];
+
+      const [user, setUser] = useState(null);
+      const [tokens, setTokens] = useState(() => safeLocalStorage.getItem('tokens', 0));
+      const [chatCount, setChatCount] = useState(() => safeLocalStorage.getItem('chatCount', 0));
+      const [tasks, setTasks] = useState(() => safeLocalStorage.getItem('tasks', defaultTasks));
+      const [referralCount, setReferralCount] = useState(() => safeLocalStorage.getItem('referralCount', 0));
+      const [referredUsers, setReferredUsers] = useState(() => safeLocalStorage.getItem('referredUsers', []));
+      const [referralCommissions, setReferralCommissions] = useState(() => safeLocalStorage.getItem('referralCommissions', 0));
+      const [walletConnected, setWalletConnected] = useState(() => safeLocalStorage.getItem('walletConnected', false));
+      const [airdropClaimed, setAirdropClaimed] = useState(() => safeLocalStorage.getItem('airdropClaimed', false));
+      const [activeTab, setActiveTab] = useState('home');
+      const [showIntro, setShowIntro] = useState(() => !safeLocalStorage.getItem('introShown', false));
+      const [showModal, setShowModal] = useState(false);
+
+      useEffect(() => {
+        const timeout = setTimeout(() => {
+          safeLocalStorage.setItem('tokens', Math.floor(tokens));
+          safeLocalStorage.setItem('tasks', tasks);
+          safeLocalStorage.setItem('referralCount', referralCount);
+          safeLocalStorage.setItem('referredUsers', referredUsers);
+          safeLocalStorage.setItem('referralCommissions', referralCommissions);
+          safeLocalStorage.setItem('walletConnected', walletConnected);
+          safeLocalStorage.setItem('airdropClaimed', airdropClaimed);
+          safeLocalStorage.setItem('chatCount', chatCount);
+        }, 500);
+        return () => clearTimeout(timeout);
+      }, [tokens, tasks, referralCount, referredUsers, referralCommissions, walletConnected, airdropClaimed, chatCount]);
+
+      useEffect(() => {
+        console.log('Initializing app...');
+        try {
+          if (window.Telegram?.WebApp) {
+            console.log('Telegram Web App detected');
+            window.Telegram.WebApp.ready();
+            const initData = window.Telegram.WebApp.initDataUnsafe || {};
+            setUser(sanitizeInitData(initData.user));
+            window.Telegram.WebApp.expand();
+            console.log('Telegram Web App initialized:', initData.user);
+          } else {
+            console.warn('Telegram Web App not detected. Running in browser mode.');
+            setUser({ username: 'Guest', id: 'unknown' });
+            showError('Running in Guest mode. For full features, open in Telegram.');
+          }
+        } catch (e) {
+          console.error('Error initializing Telegram Web App:', e);
+          setUser({ username: 'Guest', id: 'unknown' });
+          showError('Error initializing Telegram Web App. Running in Guest mode.');
+        }
+
+        if (!chatCount) {
+          try {
+            console.log('Setting initial chat count and tokens...');
+            const randomChats = Math.floor(Math.random() * 50) + 1;
+            setChatCount(randomChats);
+            const baseTokens = randomChats * 100;
+            setTokens(prev => prev + baseTokens);
+          } catch (e) {
+            console.error('Error setting chat count/tokens:', e);
+          }
+        }
+      }, [chatCount]);
+
+      const completeTask = (taskId) => {
+        try {
+          setTasks(prevTasks => {
+            const updatedTasks = prevTasks.map(task =>
+              task.id === taskId ? { ...task, completed: true } : task
+            );
+            return updatedTasks;
+          });
+          const task = tasks.find(t => t.id === taskId);
+          if (task && !task.completed) {
+            setTokens(prev => prev + task.reward);
+            console.log('Task completed:', taskId, 'Reward:', task.reward);
+          }
+        } catch (e) {
+          console.error('Error completing task:', e);
+          showError('Failed to complete task. Please try again.');
+        }
+      };
+
+      const handleJoinChannel = () => {
+        try {
+          const channelLink = 'https://t.me/kingcrypto_real';
+          if (window.Telegram?.WebApp?.openTelegramLink) {
+            window.Telegram.WebApp.openTelegramLink(channelLink);
+          } else {
+            window.open(channelLink, '_blank');
+          }
+          completeTask(1);
+        } catch (e) {
+          console.error('Error opening channel link:', e);
+          showError('Failed to open channel. Please try again.');
+        }
+      };
+
+      const addReferral = () => {
+        try {
+          setReferralCount(prev => prev + 1);
+          const newReferralId = `ref_${referralCount + 1}_${Date.now()}`;
+          const referralTokens = Math.floor(Math.random() * 5000) + 1000;
+          const commission = Math.floor(referralTokens * 0.1);
+          setReferredUsers(prev => [
+            ...prev,
+            { id: newReferralId, tokens: referralTokens },
+          ]);
+          setReferralCommissions(prev => prev + commission);
+          setTokens(prev => prev + commission);
+          console.log('Referral added:', newReferralId, 'Referral tokens:', referralTokens, 'Commission:', commission);
+        } catch (e) {
+          console.error('Error adding referral:', e);
+          showError('Failed to add referral. Please try again.');
+        }
+      };
+
+      const updateReferralTokens = (referralId) => {
+        try {
+          setReferredUsers(prev => {
+            const updatedUsers = prev.map(user => {
+              if (user.id === referralId) {
+                const newTokens = Math.floor(Math.random() * 5000) + 1000;
+                const oldCommission = Math.floor(user.tokens * 0.1);
+                const newCommission = Math.floor(newTokens * 0.1);
+                const commissionDiff = newCommission - oldCommission;
+                setReferralCommissions(prevComm => prevComm + commissionDiff);
+                setTokens(prevTokens => prevTokens + commissionDiff);
+                console.log('Updated referral:', referralId, 'New tokens:', newTokens, 'Commission added:', commissionDiff);
+                return { ...user, tokens: newTokens };
+              }
+              return user;
+            });
+            return updatedUsers;
+          });
+        } catch (e) {
+          console.error('Error updating referral tokens:', e);
+          showError('Failed to update referral tokens. Please try again.');
+        }
+      };
+
+      const connectWallet = () => {
+        try {
+          setWalletConnected(true);
+          setTokens(prev => prev + 1000);
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert('Simulated TON wallet connected!');
+          } else {
+            alert('Simulated TON wallet connected!');
+          }
+          console.log('Wallet connected, +1000 $2.0');
+        } catch (e) {
+          console.error('Error connecting wallet:', e);
+          showError('Failed to connect wallet. Please try again.');
+        }
+      };
+
+      const handleAirdrop = () => {
+        try {
+          if (airdropClaimed) {
+            if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert('Airdrop already claimed.');
+            } else {
+              alert('Airdrop already claimed.');
+            }
+            return;
+          }
+
+          if (!Array.isArray(tasks) || tasks.length === 0) {
+            showError('Tasks data is invalid. Please clear localStorage and try again.');
+            return;
+          }
+
+          const joinChannelTask = tasks.find(task => task.id === 1);
+          const joinChannelCompleted = joinChannelTask ? joinChannelTask.completed : false;
+          const inviteFriendCompleted = referralCount > 0;
+          const criteriaMet = walletConnected && joinChannelCompleted && inviteFriendCompleted;
+
+          if (criteriaMet) {
+            setTokens(prev => prev + 5000);
+            setAirdropClaimed(true);
+            if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert('Airdrop claimed! +5000 $2.0');
+            } else {
+              alert('Airdrop claimed! +5000 $2.0');
+            }
+            console.log('Airdrop claimed: +5000 $2.0');
+          } else {
+            const unmetCriteria = [];
+            if (!walletConnected) unmetCriteria.push('Connect Wallet');
+            if (!joinChannelCompleted) unmetCriteria.push('Join 2.0$ Channel');
+            if (!inviteFriendCompleted) unmetCriteria.push('Invite 1 Friend');
+            const message = `Please complete: ${unmetCriteria.join(', ')}.`;
+            if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert(message);
+            } else {
+              alert(message);
+            }
+          }
+        } catch (e) {
+          console.error('Error processing airdrop:', e);
+          showError('Failed to process airdrop. Please try again.');
+        }
+      };
+
+      const shareScore = () => {
+        try {
+          if (!window.Telegram?.WebApp?.openTelegramLink) {
+            alert('Sharing is only available in Telegram.');
+            return;
+          }
+          const shareText = `I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me: ${referralLink}`;
+          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+        } catch (e) {
+          console.error('Error sharing score:', e);
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert('Failed to share. Please try again.');
+          } else {
+            alert('Failed to share. Please try in Telegram.');
+          }
+        }
+      };
+
+      const toggleModal = () => {
+        setShowModal(prev => !prev);
+      };
+
+      const referralLink = `t.me/TwoPointZeroBot?start=ref_${user?.id || 'unknown'}`;
+      const joinChannelCompleted = tasks.find(task => task.id === 1)?.completed || false;
+      const inviteFriendCompleted = referralCount > 0;
+
+      if (showIntro) {
+        return <IntroScreen onComplete={() => setShowIntro(false)} />;
+      }
+
+      return (
+        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-16">
+          {/* Balance Circle */}
+          <div className="flex justify-center mb-4">
+            <div className="rotating-border">
+              <div className="bg-black rounded-full w-28 h-28 flex items-center justify-center text-center shadow-lg">
+                <div>
+                  <p className="text-lg font-bold text-white">{Math.floor(tokens)}</p>
+                  <p className="text-sm text-white">$2.0</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Header */}
+          <div className="w-full max-w-md flex justify-between items-center mt-4 mb-4">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold"></h1>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={shareScore}
+                className="text-white"
+                title="Share Score"
+                aria-label="Share score"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Share</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C9.484 12.542 10.8 12.542 11.6 13.342L15.658 17.4C16.458 18.2 16.458 19.516 15.658 20.316C14.858 21.116 13.542 21.116 12.742 20.316L12 19.574L11.258 20.316C10.458 21.116 9.142 21.116 8.342 20.316C7.542 19.516 7.542 18.2 8.342 17.4L12.4 13.342C13.2 12.542 14.516 12.542 15.316 13.342M12 4V16" />
+                </svg>
+              </button>
+              <button
+                onClick={toggleModal}
+                className="bg-gray-300 text-black px-3 py-1 rounded text-sm font-medium hover:bg-gray-400 transition"
+                title="Airdrop Criteria"
+                aria-label="Open airdrop criteria modal"
+              >
+                Airdrop Criteria
+              </button>
+            </div>
+          </div>
+
+          {/* Airdrop Criteria Modal */}
+          <AirdropCriteriaModal
+            isOpen={showModal}
+            onClose={toggleModal}
+            onConnectWallet={connectWallet}
+            onJoinChannel={handleJoinChannel}
+            onInviteFriend={addReferral}
+            walletConnected={walletConnected}
+            joinChannelCompleted={joinChannelCompleted}
+            inviteFriendCompleted={inviteFriendCompleted}
+          />
+
+          {/* User Info */}
+          <div className="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4">
+            <p>Chats: {chatCount} | Referrals: {referralCount} | Commissions: {referralCommissions} $2.0</p>
+          </div>
+
+          {/* Tab Content */}
+          <div className="w-full max-w-md">
+            {activeTab === 'home' && (
+              <div className="bg-black rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2"></h3>
+                <button onClick={shareScore}></button>
+                <div className="mt-4">
+                  <h4 className="text-lg font-bold mb-2">Tasks</h4>
+                  {tasks.map(task => (
+                    <div
+                      key={task.id}
+                      className="flex justify-between items-center p-2 bg-[#181818] rounded mb-2"
+                    >
+                      <span>{task.name} (+{task.reward} $2.0)</span>
+                      {task.id === 1 ? (
+                        <button
+                          onClick={handleJoinChannel}
+                          disabled={task.completed}
+                          className={`px-4 py-1 rounded ${task.completed ? 'bg-[#181818]' : 'bg-white'} text-black`}
+                          aria-label={task.completed ? `${task.name} completed` : `Complete ${task.name}`}
+                        >
+                          {task.completed ? '☑️' : 'Go'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => completeTask(task.id)}
+                          disabled={task.completed}
+                          className={`px-4 py-1 rounded ${task.completed ? 'bg-[#181818]' : 'bg-white'} text-black`}
+                          aria-label={task.completed ? `${task.name} completed` : `Complete ${task.name}`}
+                        >
+                          {task.completed ? '☑️' : 'Go'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeTab === 'referrals' && (
+              <div className="bg-[#181818] rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2">Referrals</h3>
+                <p>Invite friends to earn 10% of their $2.0 tokens!</p>
+                <p>Referral Count: {referralCount}</p>
+                <p>Total Commissions: {referralCommissions} $2.0</p>
+                {referredUsers.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-md font-bold mb-2">Referred Users</h4>
+                    {referredUsers.map(user => (
+                      <div key={user.id} className="flex justify-between items-center p-2 bg-[#282828] rounded mb-2">
+                        <span>User {user.id}: {user.tokens} $2.0</span>
+                        <button
+                          onClick={() => updateReferralTokens(user.id)}
+                          className="px-4 py-1 bg-gray-300 text-black rounded"
+                          aria-label={`Update tokens for user ${user.id}`}
+                        >
+                          Update Tokens
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={addReferral}
+                  className="mt-4 bg-gray-300 text-black px-4 py-2 rounded"
+                  aria-label="Invite friends"
+                >
+                  Invite Friends
+                </button>
+                <button
+                  onClick={shareScore}
+                  className="mt-2 bg-gray-300 text-black px-4 py-2 rounded"
+                  aria-label="Share referral link"
+                >
+                  Share Referral Link
+                </button>
+              </div>
+            )}
+            {activeTab === 'wallet' && (
+              <div className="bg-[#181818] rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2">Wallet</h3>
+                {walletConnected ? (
+                  <p>TON Wallet Connected!</p>
+                ) : (
+                  <button
+                    onClick={connectWallet}
+                    className="bg-gray-300 text-black px-4 py-2 rounded"
+                    aria-label="Connect TON wallet"
+                  >
+                    Connect TON Wallet
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Navigation */}
+          <div className="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto">
+            <button
+              className={`p-2 rounded ${activeTab === 'referrals' ? 'bg-black text-black' : 'text-white'}`}
+              onClick={() => setActiveTab('referrals')}
+              title="Referrals"
+              aria-label="Navigate to Referrals tab"
+              aria-selected={activeTab === 'referrals'}
+            >
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Referrals</title>
+                  <path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                </svg>
+              </span>
+            </button>
+            <button
+              className={`p-2 rounded ${activeTab === 'home' ? 'bg-black text-black' : 'text-white'}`}
+              onClick={() => setActiveTab('home')}
+              title="Home"
+              aria-label="Navigate to Home tab"
+              aria-selected={activeTab === 'home'}
+            >
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Home</title>
+                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1" />
+                  <circle cx="12" cy="6" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="18" r="2" />
+                </svg>
+              </span>
+            </button>
+            <button
+              className={`p-2 rounded ${activeTab === 'wallet' ? 'bg-black text-black' : 'text-white'}`}
+              onClick={() => setActiveTab('wallet')}
+              title="Wallet"
+              aria-label="Navigate to Wallet tab"
+              aria-selected={activeTab === 'wallet'}
+            >
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Wallet</title>
+                  <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    try {
+      if (window.React && window.ReactDOM && window.Babel && document.getElementById('app')) {
+        console.log('Rendering app...');
+        const root = ReactDOM.createRoot(document.getElementById('app'));
+        root.render(
+          <ErrorBoundary>
+            <TwoPointZeroApp />
+          </ErrorBoundary>
+        );
+      } else {
+        showError('Failed to load required libraries (React, ReactDOM, or Babel) or app container not found. Please refresh the page.');
+      }
+    } catch (e) {
+      console.error('Error rendering app:', e);
+      showError('Failed to initialize app. Please refresh the page.');
+    }
+  </script>
+</body>
+</html>
