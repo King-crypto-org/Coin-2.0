@@ -24,7 +24,10 @@
   <div id="app"></div>
   <div id="error" class="hidden text-red-500 text-center p-4">
     <span id="error-message"></span>
-    <button onclick="window.location.reload()" class="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+    <button onclick="window.location.reload()" className="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+  </div>
+  <div id="success" class="hidden text-green-500 text-center p-4">
+    <span id="success-message"></span>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library.')"></script>
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script.')"></script>
@@ -62,6 +65,17 @@
         errorDiv.classList.remove('hidden')
       }
     }
+    function showSuccess(message){
+      const successDiv=document.getElementById('success');
+      if(successDiv){
+        document.getElementById('success-message').innerText=message;
+        successDiv.classList.remove('hidden');
+        setTimeout(()=>{
+          successDiv.classList.add('hidden');
+          document.getElementById('success-message').innerText=''
+        },3000)
+      }
+    }
     const safeLocalStorage={
       getItem(key,defaultValue){
         try{
@@ -90,8 +104,8 @@
         id:safeId
       }
     }
-    const BOT_USERNAME='@Twopoint0_bot'; // Replace with your new bot username (e.g., '@NewBotName')
-    const CHANNEL_LINK='https://t.me/kingcrypto_real'; // Replace with your new channel link
+    const BOT_LINK='https://t.me/Twopoint0_bot';
+    const CHANNEL_LINK='https://t.me/kingcrypto_real';
   </script>
   <script type="text/babel">
     const{useState,useEffect,Component}=React;
@@ -247,26 +261,22 @@
           const commission=Math.floor(referralTokens*0.1);
           setReferredUsers(prev=>[...prev,{id:newReferralId,tokens:referralTokens}]);
           setReferralCommissions(prev=>prev+commission);
-          setTokens(prev=>prev+commission);
-          shareScore(newReferralId)
+          setTokens(prev=>prev+commission)
         }catch(e){
           showError('Failed to add referral. Please try again.')
         }
       };
-      const shareScore=(referralId='')=>{
+      const copyInviteLink=()=>{
         try{
-          const link=referralId?`https://t.me/Twopoint0_bot?start=ref_${referralId}`:`t.me${BOT_USERNAME}?start=ref_${user?.id||'unknown'}`;
-          if(!link.includes(BOT_USERNAME)||!link.includes('start=ref_')){
-            throw new Error('Invalid referral link')
-          }
-          if(!window.Telegram?.WebApp?.openTelegramLink){
-            showError('Sharing is only available in Telegram.');
-            return
-          }
-          const shareText=`I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me: ${link}`;
-          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`)
+          const link=`${BOT_LINK}?start=ref_${user?.id||generateUUID()}`;
+          if(!link.includes(BOT_LINK)||!link.includes('start=ref_')){throw new Error('Invalid referral link')}
+          navigator.clipboard.writeText(link).then(()=>{
+            showSuccess('Referral link copied')
+          }).catch(()=>{
+            showError('Failed to copy referral link. Link: '+link)
+          })
         }catch(e){
-          showError('Failed to share referral link. Please try again.')
+          showError('Failed to copy referral link. Please try again.')
         }
       };
       const connectWallet=()=>{
@@ -325,7 +335,7 @@
         }
       };
       const toggleModal=()=>{setShowModal(prev=>!prev)};
-      const referralLink=`t.me${BOT_USERNAME}?start=ref_${user?.id||generateUUID()}`;
+      const referralLink=`${BOT_LINK}?start=ref_${user?.id||generateUUID()}`;
       const joinChannelCompleted=tasks.find(task=>task.id===1)?.completed||false;
       const inviteFriendCompleted=referralCount>0;
       if(showIntro){
@@ -348,10 +358,10 @@
               <h1 className="text-xl font-bold"></h1>
             </div>
             <div className="flex space-x-3">
-              <button onClick={()=>shareScore()} className="text-white" title="Share Score" aria-label="Share score">
+              <button onClick={copyInviteLink} className="text-white" title="Copy Invite Link" aria-label="Copy invite link">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <title>Share</title>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C9.484 12.542 10.8 12.542 11.6 13.342L15.658 17.4C16.458 18.2 16.458 19.516 15.658 20.316C14.858 21.116 13.542 21.116 12.742 20.316L12 19.574L11.258 20.316C10.458 21.116 9.142 21.116 8.342 20.316C7.542 19.516 7.542 18.2 8.342 17.4L12.4 13.342C13.2 12.542 14.516 12.542 15.316 13.342M12 4V16"/>
+                  <title>Copy</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                 </svg>
               </button>
               <button onClick={toggleModal} className="bg-gray-300 text-black px-3 py-1 rounded text-sm font-medium hover:bg-gray-400 transition" title="Airdrop Criteria" aria-label="Open airdrop criteria modal">
@@ -364,7 +374,7 @@
             onClose={toggleModal}
             onConnectWallet={connectWallet}
             onJoinChannel={handleJoinChannel}
-            onInviteFriend={addReferral}
+            onInviteFriend={copyInviteLink}
             walletConnected={walletConnected}
             joinChannelCompleted={joinChannelCompleted}
             inviteFriendCompleted={inviteFriendCompleted}
@@ -376,7 +386,7 @@
             {activeTab==='home'&&(
               <div className="bg-black rounded-lg p-4">
                 <h3 className="text-lg font-bold mb-2"></h3>
-                <button onClick={()=>shareScore()}></button>
+                <button onClick={copyInviteLink}></button>
                 <div className="mt-4">
                   <h4 className="text-lg font-bold mb-2">Tasks</h4>
                   {tasks.map(task=>(
@@ -412,11 +422,11 @@
                     ))}
                   </div>
                 ):null}
-                <button onClick={addReferral} className="mt-4 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Invite friends">
-                  Invite Friends
+                <button onClick={copyInviteLink} className="mt-4 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Copy invite link">
+                  Copy Invite Link
                 </button>
-                <button onClick={()=>shareScore()} className="mt-2 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Share referral link">
-                  Share Referral Link
+                <button onClick={addReferral} className="mt-2 bg-gray-500 text-white px-4 py-2 rounded" aria-label="Test add referral">
+                  Add Referral (Test)
                 </button>
               </div>
             )}
