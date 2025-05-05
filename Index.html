@@ -255,7 +255,7 @@
       };
       const shareScore=(referralId='')=>{
         try{
-          const link=referralId?`t.me${BOT_USERNAME}?start=ref_${referralId}`:`t.me${BOT_USERNAME}?start=ref_${user?.id||'unknown'}`;
+          const link=referralId?`https://t.me/Twopoint0_bot?start=ref_${referralId}`:`t.me${BOT_USERNAME}?start=ref_${user?.id||'unknown'}`;
           if(!link.includes(BOT_USERNAME)||!link.includes('start=ref_')){
             throw new Error('Invalid referral link')
           }
