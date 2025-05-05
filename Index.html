@@ -133,9 +133,12 @@
 </head>
 <body>
   <div id="app"></div>
-  <div id="error" className="hidden text-red-500 text-center p-4">
-    <span id="error-message"></span>
-    <button onclick="window.location.reload()" className="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+  <div id="error" className="hidden text-red-500 text-center p-4 bg-[#181818] rounded-lg max-w-md mx-auto mt-4">
+    <span id="error-message" className="text-white"></span>
+    <div className="mt-4 flex justify-center space-x-4">
+      <button onclick="window.location.reload()" className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">Retry</button>
+      <a href="https://t.me/Twopoint0_bot" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Open in Telegram</a>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library. Please check your internet connection.')"></script>
@@ -177,10 +180,12 @@
     };
 
     function sanitizeInitData(initData) {
-      if (!initData || typeof initData !== 'object') return { username: 'Guest', id: 'unknown' };
+      if (!initData || typeof initData !== 'object') {
+        throw new Error('Invalid Telegram init data');
+      }
       const { username, id } = initData;
       return {
-        username: typeof username === 'string' ? username.replace(/[<>&]/g, '') : 'Guest',
+        username: typeof username === 'string' ? username.replace(/[<>&]/g, '') : 'Unknown',
         id: typeof id === 'string' || typeof id === 'number' ? String(id).replace(/[<>&]/g, '') : 'unknown',
       };
     }
@@ -199,11 +204,16 @@
       render() {
         if (this.state.hasError) {
           return (
-            <div className="text-red-500 text-center p-4">
-              <p>Something went wrong: {this.state.error.message}</p>
-              <button onClick={() => window.location.reload()} className="bg-gray-300 text-black px-2 py-1 rounded">
-                Retry
-              </button>
+            <div className="text-red-500 text-center p-4 bg-[#181818] rounded-lg max-w-md mx-auto mt-4">
+              <p className="text-white">Something went wrong: {this.state.error.message}</p>
+              <div className="mt-4 flex justify-center space-x-4">
+                <button onClick={() => window.location.reload()} className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
+                  Retry
+                </button>
+                <a href="https://t.me/Twopoint0_bot" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                  Open in Telegram
+                </a>
+              </div>
             </div>
           );
         }
@@ -255,7 +265,7 @@
                   className={`cylindrical-button ziz-zizz-circle p-2 ${walletConnected ? 'bg-[#181818]' : 'bg-white text-black'}`}
                   aria-label={walletConnected ? 'Wallet connected' : 'Connect wallet'}
                 >
-                  {walletConnected ? '☑️' : 'Go'}
+                  {walletConnected ? '☑️' : '均为'}
                 </button>
               </div>
               <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
@@ -305,6 +315,8 @@
       const [activeTab, setActiveTab] = useState('home');
       const [showIntro, setShowIntro] = useState(() => !safeLocalStorage.getItem('introShown', false));
       const [showModal, setShowModal] = useState(false);
+      const [showError, setShowError] = useState(false);
+      const [errorMessage, setErrorMessage] = useState('');
 
       useEffect(() => {
         const timeout = setTimeout(() => {
@@ -323,37 +335,37 @@
       useEffect(() => {
         console.log('Initializing app...');
         try {
-          if (window.Telegram?.WebApp) {
-            console.log('Telegram Web App detected');
-            window.Telegram.WebApp.ready();
-            const initData = window.Telegram.WebApp.initDataUnsafe || {};
-            const sanitizedUser = sanitizeInitData(initData.user);
-            setUser(sanitizedUser);
-            window.Telegram.WebApp.expand();
-            console.log('Telegram Web App initialized:', initData.user);
+          if (!window.Telegram?.WebApp) {
+            console.error('Telegram Web App not detected.');
+            setShowError(true);
+            setErrorMessage('This app requires Telegram. Please open in Telegram.');
+            showError('This app requires Telegram. Please open in Telegram.');
+            return;
+          }
 
-            // Handle referral from start_param
-            const startParam = initData.start_param;
-            if (startParam && startParam.startsWith('ref_')) {
-              const referrerId = startParam.replace('ref_', '');
-              const isAlreadyReferred = safeLocalStorage.getItem('isReferred', false);
-              if (!isAlreadyReferred && referrerId !== sanitizedUser.id) {
-                console.log(`Processing referral from user ID: ${referrerId}`);
-                addReferral(referrerId);
-                safeLocalStorage.setItem('isReferred', true);
-                if (window.Telegram?.WebApp?.showAlert) {
-                  window.Telegram.WebApp.showAlert('You were referred successfully!');
-                } else {
-                  alert('You were referred successfully!');
-                }
-              } else {
-                console.log('Referral skipped: User already referred or self-referral');
+          console.log('Telegram Web App detected');
+          window.Telegram.WebApp.ready();
+          const initData = window.Telegram.WebApp.initDataUnsafe || {};
+          const sanitizedUser = sanitizeInitData(initData.user);
+          setUser(sanitizedUser);
+          window.Telegram.WebApp.expand();
+          console.log('Telegram Web App initialized:', initData.user);
+
+          // Handle referral from start_param
+          const startParam = initData.start_param;
+          if (startParam && startParam.startsWith('ref_')) {
+            const referrerId = startParam.replace('ref_', '');
+            const isAlreadyReferred = safeLocalStorage.getItem('isReferred', false);
+            if (!isAlreadyReferred && referrerId !== sanitizedUser.id) {
+              console.log(`Processing referral from user ID: ${referrerId}`);
+              addReferral(referrerId);
+              safeLocalStorage.setItem('isReferred', true);
+              if (window.Telegram.WebApp.showAlert) {
+                window.Telegram.WebApp.showAlert('You were referred successfully!');
               }
+            } else {
+              console.log('Referral skipped: User already referred or self-referral');
             }
-          } else {
-            console.warn('Telegram Web App not detected. Running in browser mode.');
-            setUser({ username: 'Guest', id: 'unknown' });
-            showError('Running in Guest mode. For full features, open in Telegram.');
           }
 
           if (!chatCount) {
@@ -369,8 +381,9 @@
           }
         } catch (e) {
           console.error('Error initializing Telegram Web App:', e);
-          setUser({ username: 'Guest', id: 'unknown' });
-          showError('Error initializing Telegram Web App. Running in Guest mode.');
+          setShowError(true);
+          setErrorMessage('Failed to initialize Telegram Web App. Please open in Telegram.');
+          showError('Failed to initialize Telegram Web App. Please open in Telegram.');
         }
       }, [chatCount]);
 
@@ -389,8 +402,6 @@
           console.log('Referral added:', newReferralId, 'Referrer:', referrerId, 'Referral tokens:', referralTokens, 'Commission:', commission);
           if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert(`Referral added! +${commission} $2.0`);
-          } else {
-            alert(`Referral added! +${commission} $2.0`);
           }
         } catch (e) {
           console.error('Error adding referral:', e);
@@ -482,8 +493,6 @@
           setTokens(prev => prev + 1000);
           if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert('Simulated TON wallet connected!');
-          } else {
-            alert('Simulated TON wallet connected!');
           }
           console.log('Wallet connected, +1000 $2.0');
         } catch (e) {
@@ -497,8 +506,6 @@
           if (airdropClaimed) {
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Airdrop already claimed.');
-            } else {
-              alert('Airdrop already claimed.');
             }
             return;
           }
@@ -518,8 +525,6 @@
             setAirdropClaimed(true);
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Airdrop claimed! +5000 $2.0');
-            } else {
-              alert('Airdrop claimed! +5000 $2.0');
             }
             console.log('Airdrop claimed: +5000 $2.0');
           } else {
@@ -530,8 +535,6 @@
             const message = `Please complete: ${unmetCriteria.join(', ')}.`;
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert(message);
-            } else {
-              alert(message);
             }
           }
         } catch (e) {
@@ -562,6 +565,24 @@
       const referralLink = `https://t.me/Twopoint0_bot?start=ref_${user?.id || 'unknown'}`;
       const joinChannelCompleted = tasks.find(task => task.id === 1)?.completed || false;
       const inviteFriendCompleted = referralCount > 0;
+
+      if (showError) {
+        return (
+          <div className="min-h-screen bg-black flex items-center justify-center p-4">
+            <div className="text-red-500 text-center bg-[#181818] rounded-lg p-6 max-w-md w-full">
+              <p className="text-white text-lg">{errorMessage}</p>
+              <div className="mt-4 flex justify-center space-x-4">
+                <button onClick={() => window.location.reload()} className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
+                  Retry
+                </button>
+                <a href="https://t.me/Twopoint0_bot" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                  Open in Telegram
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       if (showIntro) {
         return <IntroScreen onComplete={() => setShowIntro(false)} />;
