@@ -30,7 +30,7 @@
     <span id="success-message"></span>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library.')"></script>
-  <script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script.')"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script. Please check your network or open in Telegram.')"></script>
   <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" onerror="showError('Failed to load React.')"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" onerror="showError('Failed to load ReactDOM.')"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js" onerror="showError('Failed to load Babel.')"></script>
@@ -62,7 +62,8 @@
       const errorDiv=document.getElementById('error');
       if(errorDiv){
         document.getElementById('error-message').innerText=message;
-        errorDiv.classList.remove('hidden')
+        errorDiv.classList.remove('hidden');
+        console.error('Error:',message)
       }
     }
     function showSuccess(message){
@@ -96,12 +97,22 @@
       })
     }
     function sanitizeInitData(initData){
-      if(!initData||typeof initData!=='object')return{username:'Guest',id:generateUUID()};
+      if(!initData||typeof initData!=='object')throw new Error('Invalid Telegram user data');
       const{username,id}=initData;
       const safeId=(typeof id==='string'||typeof id==='number')&&String(id).trim()?String(id).replace(/[<>&]/g,''):generateUUID();
       return{
-        username:typeof username==='string'?username.replace(/[<>&]/g,''):'Guest',
+        username:typeof username==='string'?username.replace(/[<>&]/g,''):'User',
         id:safeId
+      }
+    }
+    function isTelegramEnv(){
+      try{
+        const isTelegram=!!window.Telegram?.WebApp;
+        const hasInitData=window.Telegram?.WebApp?.initDataUnsafe&&Object.keys(window.Telegram.WebApp.initDataUnsafe).length>0;
+        return isTelegram&&hasInitData
+      }catch(e){
+        console.error('Error checking Telegram environment:',e);
+        return false
       }
     }
     const BOT_LINK='https://t.me/Twopoint0_bot';
@@ -183,6 +194,7 @@
         {id:3,name:"Daily Check-In",reward:200,completed:false}
       ];
       const[user,setUser]=useState(null);
+      const[initializationError,setInitializationError]=useState(null);
       const[tokens,setTokens]=useState(()=>safeLocalStorage.getItem('tokens',0));
       const[chatCount,setChatCount]=useState(()=>safeLocalStorage.getItem('chatCount',0));
       const[tasks,setTasks]=useState(()=>safeLocalStorage.getItem('tasks',defaultTasks));
@@ -195,41 +207,59 @@
       const[showIntro,setShowIntro]=useState(()=>!safeLocalStorage.getItem('introShown',false));
       const[showModal,setShowModal]=useState(false);
       useEffect(()=>{
-        const timeout=setTimeout(()=>{
-          safeLocalStorage.setItem('tokens',Math.floor(tokens));
-          safeLocalStorage.setItem('tasks',tasks);
-          safeLocalStorage.setItem('referralCount',referralCount);
-          safeLocalStorage.setItem('referredUsers',referredUsers);
-          safeLocalStorage.setItem('referralCommissions',referralCommissions);
-          safeLocalStorage.setItem('walletConnected',walletConnected);
-          safeLocalStorage.setItem('airdropClaimed',airdropClaimed);
-          safeLocalStorage.setItem('chatCount',chatCount)
-        },500);
-        return()=>clearTimeout(timeout)
-      },[tokens,tasks,referralCount,referredUsers,referralCommissions,walletConnected,airdropClaimed,chatCount]);
-      useEffect(()=>{
         try{
-          if(window.Telegram?.WebApp){
-            window.Telegram.WebApp.ready();
-            const initData=window.Telegram.WebApp.initDataUnsafe||{};
-            setUser(sanitizeInitData(initData.user));
-            window.Telegram.WebApp.expand()
-          }else{
-            setUser({username:'Guest',id:generateUUID()});
-            showError('Running in Guest mode. For full features, open in Telegram.')
+          if(!window.Telegram){
+            setInitializationError('Telegram Web App not detected. Please open in Telegram.');
+            return
+          }
+          if(!window.Telegram.WebApp){
+            setInitializationError('Telegram Web App SDK not loaded. Please check your network or reload.');
+            return
+          }
+          window.Telegram.WebApp.ready();
+          const initData=window.Telegram.WebApp.initDataUnsafe||{};
+          if(!initData.user){
+            setInitializationError('No user data provided by Telegram. Please open in Telegram.');
+            return
+          }
+          const sanitizedUser=sanitizeInitData(initData.user);
+          setUser(sanitizedUser);
+          window.Telegram.WebApp.expand();
+          if(!isTelegramEnv()){
+            setInitializationError('Not running in a valid Telegram environment. Please open in Telegram.');
+            return
           }
         }catch(e){
-          setUser({username:'Guest',id:generateUUID()});
-          showError('Error initializing Telegram Web App. Running in Guest mode.')
+          console.error('Telegram initialization error:',e.message,e.stack);
+          setInitializationError(`Error initializing Telegram Web App: ${e.message}. Please open in Telegram.`);
         }
-        if(!chatCount){
+      },[]);
+      useEffect(()=>{
+        if(user&&chatCount===0){
           try{
             const randomChats=Math.floor(Math.random()*50)+1;
             setChatCount(randomChats);
             setTokens(prev=>prev+randomChats*100)
-          }catch(e){}
+          }catch(e){
+            console.error('Error setting chat count:',e);
+          }
         }
-      },[chatCount]);
+      },[user,chatCount]);
+      useEffect(()=>{
+        if(user){
+          const timeout=setTimeout(()=>{
+            safeLocalStorage.setItem('tokens',Math.floor(tokens));
+            safeLocalStorage.setItem('tasks',tasks);
+            safeLocalStorage.setItem('referralCount',referralCount);
+            safeLocalStorage.setItem('referredUsers',referredUsers);
+            safeLocalStorage.setItem('referralCommissions',referralCommissions);
+            safeLocalStorage.setItem('walletConnected',walletConnected);
+            safeLocalStorage.setItem('airdropClaimed',airdropClaimed);
+            safeLocalStorage.setItem('chatCount',chatCount)
+          },500);
+          return()=>clearTimeout(timeout)
+        }
+      },[user,tokens,tasks,referralCount,referredUsers,referralCommissions,walletConnected,airdropClaimed,chatCount]);
       const completeTask=(taskId)=>{
         try{
           setTasks(prevTasks=>prevTasks.map(task=>task.id===taskId?{...task,completed:true}:task));
@@ -335,9 +365,21 @@
         }
       };
       const toggleModal=()=>{setShowModal(prev=>!prev)};
-      const referralLink=`${BOT_LINK}?start=ref_${user?.id||generateUUID()}`;
       const joinChannelCompleted=tasks.find(task=>task.id===1)?.completed||false;
       const inviteFriendCompleted=referralCount>0;
+      if(initializationError){
+        return(
+          <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="text-red-500 text-center p-4">
+              <p>{initializationError}</p>
+              <button onClick={()=>window.location.reload()} className="mt-4 bg-gray-300 text-black px-4 py-2 rounded">Retry</button>
+            </div>
+          </div>
+        )
+      }
+      if(!user){
+        return null
+      }
       if(showIntro){
         return <IntroScreen onComplete={()=>setShowIntro(false)}/>
       }
