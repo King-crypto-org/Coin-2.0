@@ -1,1 +1,484 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2.0 Mini App</title><script src="https://cdn.tailwindcss.com"></script><style>html{scroll-behavior:smooth}body{background:#000}.rotating-border{position:relative;display:inline-flex;align-items:center;justify-content:center}.rotating-border::before{content:'';position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:50%;background:linear-gradient(90deg,#fff,transparent);animation:rotateBorder 2s linear infinite;z-index:-1}@keyframes rotateBorder{from{transform:rotate(0)}to{transform:rotate(360deg)}}.zoom-animation{animation:zoomInOut 3s ease-in-out 2}@keyframes zoomInOut{0%{transform:scale(1)}50%{transform:scale(1.5)}100%{transform:scale(1)}}.cylindrical-button{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:linear-gradient(145deg,#555,#333);box-shadow:inset 0 2px 4px rgba(0,0,0,.5),inset 0 -2px 4px rgba(255,255,255,.2)}.ziz-zizz-circle{position:relative;display:inline-block}.ziz-zizz-circle::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;border-radius:50%;border:2px dashed currentColor;animation:rotateZizZizz 3s linear infinite,pulseZizZizz .5s ease-in-out infinite alternate;z-index:-1}@keyframes rotateZizZizz{from{transform:rotate(0)}to{transform:rotate(360deg)}}@keyframes pulseZizZizz{from{transform:scale(1)}to{transform:scale(1.1)}}</style></head><body><div id="app"></div><div id="error" class="hidden text-red-500 text-center p-4"><span id="error-message"></span><button onclick="location.reload()" class="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button></div><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library.')"></script><script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script.')"></script><script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" onerror="showError('Failed to load React.')"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" onerror="showError('Failed to load ReactDOM.')"></script><script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js" onerror="showError('Failed to load Babel.')"></script><script>const fm={isXlsx:!1,xlsxFileLookup:{},fileData:{}};function filledCell(e){return e!==""&&e!=null}function loadFileData(e){if(!window.XLSX)return"";if(fm.isXlsx&&fm.xlsxFileLookup[e]){try{const t=XLSX.read(fm.fileData[e],{type:"base64"}),r=t.SheetNames[0];if(!r)return"";const n=t.Sheets[r],a=XLSX.utils.sheet_to_json(n,{header:1,blankrows:!1,defval:""}),s=a.filter(l=>l.some(filledCell));if(!s.length)return"";let i=0,o=0;s.forEach((e,t)=>{const r=e.filter(filledCell).length;r>o&&(o=r,i=t)});return XLSX.utils.sheet_to_csv(XLSX.utils.aoa_to_sheet(s.slice(i)))}catch{return""}}return fm.fileData[e]||""}function showError(e){const t=document.getElementById("error");t&&(document.getElementById("error-message").innerText=e,t.classList.remove("hidden"))}const ls={getItem:(e,t)=>{try{const r=localStorage.getItem(e);return r!==null?JSON.parse(r):t}catch{return t}},setItem:(e,t)=>{try{localStorage.setItem(e,JSON.stringify(t))}catch{}}};function sanitizeInitData(e){return e&&typeof e=="object"?{username:typeof e.username=="string"?e.username.replace(/[<>&]/g,""):"Guest",id:typeof e.id=="string"||typeof e.id=="number"?String(e.id).replace(/[<>&]/g,""):"unknown"}:{username:"Guest",id:"unknown"}}</script><script type="text/babel">const{useState:n,useEffect:a,Component:s}=React;class ErrorBoundary extends s{state={hasError:!1,error:null};static getDerivedStateFromError(e){return{hasError:!0,error:e}}render(){return this.state.hasError?<div class="text-red-500 text-center p-4"><p>Something went wrong: {this.state.error.message}</p><button onClick={()=>location.reload()} class="bg-gray-300 text-black px-2 py-1 rounded">Retry</button></div>:this.props.children}}function IntroScreen({onComplete:e}){return a(()=>{const t=setTimeout(()=>{ls.setItem("introShown","true"),e()},3e3);return()=>clearTimeout(t)},[e]),<div class="min-h-screen bg-black flex items-center justify-center"><h1 class="text-6xl font-bold text-white zoom-animation">2.0</h1></div>}function AirdropCriteriaModal({isOpen:e,onClose:t,onConnectWallet:r,onJoinChannel:n,onInviteFriend:a,walletConnected:s,joinChannelCompleted:i,inviteFriendCompleted:o}){return e?<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div class="bg-[#181818] rounded-lg p-6 w-full max-w-md"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-white">Airdrop Criteria</h2><button onClick={t} class="text-white" aria-label="Close airdrop criteria modal"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><title>Close</title><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div><div class="space-y-4"><div class="flex justify-between items-center p-2 bg-[#282828] rounded"><span class="text-white">Connect Wallet</span><button onClick={r} disabled={s} class={`cylindrical-button ziz-zizz-circle p-2 ${s?"bg-[#181818]":"bg-white text-black"}`} aria-label={s?"Wallet connected":"Connect wallet"}>{s?"☑️":"Go"}</button></div><div class="flex justify-between items-center p-2 bg-[#282828] rounded"><span class="text-white">Join 2.0$ Channel</span><button onClick={n} disabled={i} class={`cylindrical-button ziz-zizz-circle p-2 ${i?"bg-[#181818]":"bg-white text-black"}`} aria-label={i?"Channel joined":"Join 2.0$ Channel"}>{i?"☑️":"Go"}</button></div><div class="flex justify-between items-center p-2 bg-[#282828] rounded"><span class="text-white">Invite 1 Friend</span><button onClick={a} disabled={o} class={`cylindrical-button ziz-zizz-circle p-2 ${o?"bg-[#181818]":"bg-white text-black"}`} aria-label={o?"Friend invited":"Invite a friend"}>{o?"☑️":"Go"}</button></div></div></div></div>:null}function TwoPointZeroApp(){const e=[{id:1,name:"Join 2.0$ Channel",reward:1e3,completed:!1},{id:2,name:"Follow on X",reward:500,completed:!1},{id:3,name:"Daily Check-In",reward:200,completed:!1}],[t,r]=n(null),[s,i]=n(()=>ls.getItem("tokens",0)),[o,l]=n(()=>ls.getItem("chatCount",0)),[c,d]=n(()=>ls.getItem("tasks",e)),[u,p]=n(()=>ls.getItem("referralCount",0)),[m,f]=n(()=>ls.getItem("referredUsers",[])),[h,g]=n(()=>ls.getItem("referralCommissions",0)),[C,b]=n(()=>ls.getItem("walletConnected",!1)),[v,w]=n(()=>ls.getItem("airdropClaimed",!1)),[y,E]=n("home"),[x,k]=n(()=>!ls.getItem("introShown",!1)),[T,j]=n(!1);a(()=>{const e=setTimeout(()=>{ls.setItem("tokens",Math.floor(s)),ls.setItem("tasks",c),ls.setItem("referralCount",u),ls.setItem("referredUsers",m),ls.setItem("referralCommissions",h),ls.setItem("walletConnected",C),ls.setItem("airdropClaimed",v),ls.setItem("chatCount",o)},500);return()=>clearTimeout(e)},[s,c,u,m,h,C,v,o]),a(()=>{try{if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();const e=window.Telegram.WebApp.initDataUnsafe||{};r(sanitizeInitData(e.user)),window.Telegram.WebApp.expand()}else r({username:"Guest",id:"unknown"}),showError("Running in Guest mode.")}catch{r({username:"Guest",id:"unknown"}),showError("Error initializing Telegram.")}o||l(e=>{const t=Math.floor(Math.random()*50)+1;return i(r=>r+t*100),t})},[o]);const completeTask=e=>{try{d(t=>t.map(t=>t.id===e?{...t,completed:!0}:t));const r=c.find(t=>t.id===e);r&&!r.completed&&i(t=>t+r.reward)}catch{showError("Failed to complete task.")}},handleJoinChannel=()=>{try{const e="https://t.me/kingcrypto_real";window.Telegram?.WebApp?.openTelegramLink?window.Telegram.WebApp.openTelegramLink(e):window.open(e,"_blank"),completeTask(1)}catch{showError("Failed to open channel.")}},addReferral=()=>{try{p(e=>e+1);const e=`ref_${u+1}_${Date.now()}`,t=Math.floor(Math.random()*5e3)+1e3,r=Math.floor(t*.1);f(e=>[...e,{id:e,tokens:t}]),g(e=>e+r),i(e=>e+r)}catch{showError("Failed to add referral.")}},updateReferralTokens=e=>{try{f(t=>t.map(t=>t.id===e?{...t,tokens:(()=>{const r=Math.floor(Math.random()*5e3)+1e3,n=Math.floor(t.tokens*.1),a=Math.floor(r*.1),s=a-n;return g(e=>e+s),i(e=>e+s),r})()}:t))}catch{showError("Failed to update referral tokens.")}},connectWallet=()=>{try{b(!0),i(e=>e+1e3),window.Telegram?.WebApp?.showAlert?window.Telegram.WebApp.showAlert("Simulated TON wallet connected!"):alert("Simulated TON wallet connected!")}catch{showError("Failed to connect wallet.")}},handleAirdrop=()=>{try{if(v)return void(window.Telegram?.WebApp?.showAlert?window.Telegram.WebApp.showAlert("Airdrop already claimed."):alert("Airdrop already claimed."));if(!Array.isArray(c)||!c.length)return void showError("Tasks data is invalid.");const e=c.find(e=>e.id===1),t=e?e.completed:!1,r=u>0,n=C&&t&&r;n?(i(e=>e+5e3),w(!0),window.Telegram?.WebApp?.showAlert?window.Telegram.WebApp.showAlert("Airdrop claimed! +5000 $2.0"):alert("Airdrop claimed! +5000 $2.0")):((e=[])=>window.Telegram?.WebApp?.showAlert?window.Telegram.WebApp.showAlert(`Please complete: ${e.join(", ")}.`):alert(`Please complete: ${e.join(", ")}.`))([C?"":"Connect Wallet",t?"":"Join 2.0$ Channel",r?"":"Invite 1 Friend"].filter(Boolean))}catch{showError("Failed to process airdrop.")}},shareScore=()=>{try{window.Telegram?.WebApp?.openTelegramLink?(e=>window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(e)}&text=${encodeURIComponent(`I have ${Math.floor(s)} $2.0 in the 2.0 Mini App! Join me: ${e}`)}`))(S):alert("Sharing is only available in Telegram.")}catch{window.Telegram?.WebApp?.showAlert?window.Telegram.WebApp.showAlert("Failed to share."):alert("Failed to share.")}},toggleModal=()=>j(e=>!e),S=`t.me/Twopoint0_bot?start=ref_${t?.id||"unknown"}`,A=c.find(e=>e.id===1)?.completed||!1,L=u>0;return x?<IntroScreen onComplete={()=>k(!1)}/>:t?<div class="min-h-screen text-white flex flex-col items-center p-4 pb-16"><div class="flex justify-center mb-4"><div class="rotating-border"><div class="bg-black rounded-full w-28 h-28 flex items-center justify-center text-center shadow-lg"><div><p class="text-lg font-bold text-white">{Math.floor(s)}</p><p class="text-sm text-white">$2.0</p></div></div></div></div><div class="w-full max-w-md flex justify-between items-center mt-4 mb-4"><div class="flex items-center"><h1 class="text-xl font-bold"></h1></div><div class="flex space-x-3"><button onClick={shareScore} class="text-white" title="Share Score" aria-label="Share score"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><title>Share</title><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C9.484 12.542 10.8 12.542 11.6 13.342L15.658 17.4C16.458 18.2 16.458 19.516 15.658 20.316C14.858 21.116 13.542 21.116 12.742 20.316L12 19.574L11.258 20.316C10.458 21.116 9.142 21.116 8.342 20.316C7.542 19.516 7.542 18.2 8.342 17.4L12.4 13.342C13.2 12.542 14.516 12.542 15.316 13.342M12 4V16"/></svg></button><button onClick={toggleModal} class="bg-gray-300 text-black px-3 py-1 rounded text-sm font-medium hover:bg-gray-400 transition" title="Airdrop Criteria" aria-label="Open airdrop criteria modal">Airdrop Criteria</button></div></div><AirdropCriteriaModal isOpen={T} onClose={toggleModal} onConnectWallet={connectWallet} onJoinChannel={handleJoinChannel} onInviteFriend={addReferral} walletConnected={C} joinChannelCompleted={A} inviteFriendCompleted={L}/><div class="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4"><p>Chats: {o} | Referrals: {u} | Commissions: {h} $2.0</p></div><div class="w-full max-w-md">{y==="home"?<div class="bg-black rounded-lg p-4"><button onClick={shareScore}></button><div class="mt-4"><h4 class="text-lg font-bold mb-2">Tasks</h4>{c.map(e=><div key={e.id} class="flex justify-between items-center p-2 bg-[#181818] rounded mb-2"><span>{e.name} (+{e.reward} $2.0)</span>{e.id===1?<button onClick={handleJoinChannel} disabled={e.completed} class={`px-4 py-1 rounded ${e.completed?"bg-[#181818]":"bg-white"} text-black`} aria-label={e.completed?`${e.name} completed`:`Complete ${e.name}`}>{e.completed?"☑️":"Go"}</button>:<button onClick={()=>completeTask(e.id)} disabled={e.completed} class={`px-4 py-1 rounded ${e.completed?"bg-[#181818]":"bg-white"} text-black`} aria-label={e.completed?`${e.name} completed`:`Complete ${e.name}`}>{e.completed?"☑️":"Go"}</button>}</div>)}</div></div>:y==="referrals"?<div class="bg-[#181818] rounded-lg p-4"><h3 class="text-lg font-bold mb-2">Referrals</h3><p>Invite friends to earn 10% of their $2.0 tokens!</p><p>Referral Count: {u}</p><p>Total Commissions: {h} $2.0</p>{m.length>0&&<div class="mt-4"><h4 class="text-md font-bold mb-2">Referred Users</h4>{m.map(e=><div key={e.id} class="flex justify-between items-center p-2 bg-[#282828] rounded mb-2"><span>User {e.id}: {e.tokens} $2.0</span><button onClick={()=>updateReferralTokens(e.id)} class="px-4 py-1 bg-gray-300 text-black rounded" aria-label={`Update tokens for user ${e.id}`}>Update Tokens</button></div>)}</div>}<button onClick={addReferral} class="mt-4 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Invite friends">Invite Friends</button><button onClick={shareScore} class="mt-2 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Share referral link">Share Referral Link</button></div>:<div class="bg-[#181818] rounded-lg p-4"><h3 class="text-lg font-bold mb-2">Wallet</h3>{C?<p>TON Wallet Connected!</p>:<button onClick={connectWallet} class="bg-gray-300 text-black px-4 py-2 rounded" aria-label="Connect TON wallet">Connect TON Wallet</button>}</div>}</div><div class="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto"><button class={`p-2 rounded ${y==="referrals"?"bg-black text-black":"text-white"}`} onClick={()=>E("referrals")} title="Referrals" aria-label="Navigate to Referrals tab" aria-selected={y==="referrals"}><span class="cylindrical-button ziz-zizz-circle"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><title>Referrals</title><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span></button><button class={`p-2 rounded ${y==="home"?"bg-black text-black":"text-white"}`} onClick={()=>E("home")} title="Home" aria-label="Navigate to Home tab" aria-selected={y==="home"}><span class="cylindrical-button ziz-zizz-circle"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><title>Home</title><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1"/><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg></span></button><button class={`p-2 rounded ${y==="wallet"?"bg-black text-black":"text-white"}`} onClick={()=>E("wallet")} title="Wallet" aria-label="Navigate to Wallet tab" aria-selected={y==="wallet"}><span class="cylindrical-button ziz-zizz-circle"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><title>Wallet</title><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></span></button></div></div>:<div class="min-h-screen bg-black flex items-center justify-center text-white"><p>Loading user data...</p></div>}try{window.React&&window.ReactDOM&&window.Babel&&document.getElementById("app")?(e=>e.render(<ErrorBoundary><TwoPointZeroApp/></ErrorBoundary>))(ReactDOM.createRoot(document.getElementById("app"))):showError("Failed to load required libraries or app container not found.")}catch(e){showError("Failed to initialize app.")}</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>2.0 Mini App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html{scroll-behavior:smooth}
+    body{background:#000}
+    .rotating-border{position:relative;display:inline-flex;align-items:center;justify-content:center}
+    .rotating-border::before{content:'';position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:50%;background:linear-gradient(90deg,#fff,transparent);animation:rotateBorder 2s linear infinite;z-index:-1}
+    @keyframes rotateBorder{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .zoom-animation{animation:zoomInOut 3s ease-in-out 2}
+    @keyframes zoomInOut{0%{transform:scale(1)}50%{transform:scale(1.5)}100%{transform:scale(1)}}
+    .cylindrical-button{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:linear-gradient(145deg,#555,#333);box-shadow:inset 0 2px 4px rgba(0,0,0,0.5),inset 0 -2px 4px rgba(255,255,255,0.2)}
+    .ziz-zizz-circle{position:relative;display:inline-block}
+    .ziz-zizz-circle::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;border-radius:50%;border:2px dashed currentColor;animation:rotateZizZizz 3s linear infinite,pulseZizZizz 0.5s ease-in-out infinite alternate;z-index:-1}
+    @keyframes rotateZizZizz{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    @keyframes pulseZizZizz{from{transform:scale(1)}to{transform:scale(1.1)}}
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="error" class="hidden text-red-500 text-center p-4">
+    <span id="error-message"></span>
+    <button onclick="window.location.reload()" class="ml-2 bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="showError('Failed to load XLSX library.')"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" onerror="showError('Failed to load Telegram Web App script.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" onerror="showError('Failed to load React.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" onerror="showError('Failed to load ReactDOM.')"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js" onerror="showError('Failed to load Babel.')"></script>
+  <script>
+    const gkFileManager={isXlsx:false,xlsxFileLookup:{},fileData:{}};
+    function filledCell(cell){return cell!==''&&cell!=null}
+    function loadFileData(filename){
+      if(!window.XLSX){return''}
+      if(gkFileManager.isXlsx&&gkFileManager.xlsxFileLookup[filename]){
+        try{
+          const workbook=XLSX.read(gkFileManager.fileData[filename],{type:'base64'});
+          const firstSheetName=workbook.SheetNames[0]||null;
+          if(!firstSheetName){return''}
+          const worksheet=workbook.Sheets[firstSheetName];
+          const jsonData=XLSX.utils.sheet_to_json(worksheet,{header:1,blankrows:false,defval:''});
+          const filteredData=jsonData.filter(row=>row.some(filledCell));
+          if(filteredData.length===0){return''}
+          let headerRowIndex=0,maxFilledCells=0;
+          filteredData.forEach((row,index)=>{
+            const filledCount=row.filter(filledCell).length;
+            if(filledCount>maxFilledCells){maxFilledCells=filledCount;headerRowIndex=index}
+          });
+          return XLSX.utils.sheet_to_csv(XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)))
+        }catch(e){return''}
+      }
+      return gkFileManager.fileData[filename]||''
+    }
+    function showError(message){
+      const errorDiv=document.getElementById('error');
+      if(errorDiv){
+        document.getElementById('error-message').innerText=message;
+        errorDiv.classList.remove('hidden')
+      }
+    }
+    const safeLocalStorage={
+      getItem(key,defaultValue){
+        try{
+          const value=localStorage.getItem(key);
+          if(value===null)return defaultValue;
+          const parsed=JSON.parse(value);
+          return key==='referredUsers'&&!Array.isArray(parsed)?defaultValue:parsed
+        }catch(e){return defaultValue}
+      },
+      setItem(key,value){
+        try{localStorage.setItem(key,JSON.stringify(value))}catch(e){}
+      }
+    };
+    function generateUUID(){
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);
+        return v.toString(16)
+      })
+    }
+    function sanitizeInitData(initData){
+      if(!initData||typeof initData!=='object')return{username:'Guest',id:generateUUID()};
+      const{username,id}=initData;
+      const safeId=(typeof id==='string'||typeof id==='number')&&String(id).trim()?String(id).replace(/[<>&]/g,''):generateUUID();
+      return{
+        username:typeof username==='string'?username.replace(/[<>&]/g,''):'Guest',
+        id:safeId
+      }
+    }
+    const BOT_USERNAME='@Twopoint0_bot'; // Replace with your new bot username (e.g., '@NewBotName')
+    const CHANNEL_LINK='https://t.me/kingcrypto_real'; // Replace with your new channel link
+  </script>
+  <script type="text/babel">
+    const{useState,useEffect,Component}=React;
+    class ErrorBoundary extends Component{
+      state={hasError:false,error:null};
+      static getDerivedStateFromError(error){return{hasError:true,error}}
+      render(){
+        if(this.state.hasError){
+          return(
+            <div className="text-red-500 text-center p-4">
+              <p>Something went wrong: {this.state.error.message}</p>
+              <button onClick={()=>window.location.reload()} className="bg-gray-300 text-black px-2 py-1 rounded">Retry</button>
+            </div>
+          )
+        }
+        return this.props.children
+      }
+    }
+    function IntroScreen({onComplete}){
+      useEffect(()=>{
+        const timer=setTimeout(()=>{
+          safeLocalStorage.setItem('introShown','true');
+          onComplete()
+        },3000);
+        return()=>clearTimeout(timer)
+      },[onComplete]);
+      return(
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <h1 className="text-6xl font-bold text-white zoom-animation">2.0</h1>
+        </div>
+      )
+    }
+    function AirdropCriteriaModal({isOpen,onClose,onConnectWallet,onJoinChannel,onInviteFriend,walletConnected,joinChannelCompleted,inviteFriendCompleted}){
+      if(!isOpen)return null;
+      return(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#181818] rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Airdrop Criteria</h2>
+              <button onClick={onClose} className="text-white" aria-label="Close airdrop criteria modal">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Close</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Connect Wallet</span>
+                <button onClick={onConnectWallet} disabled={walletConnected} className={`cylindrical-button ziz-zizz-circle p-2 ${walletConnected?'bg-[#181818]':'bg-white text-black'}`} aria-label={walletConnected?'Wallet connected':'Connect wallet'}>
+                  {walletConnected?'☑️':'Go'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Join 2.0$ Channel</span>
+                <button onClick={onJoinChannel} disabled={joinChannelCompleted} className={`cylindrical-button ziz-zizz-circle p-2 ${joinChannelCompleted?'bg-[#181818]':'bg-white text-black'}`} aria-label={joinChannelCompleted?'Channel joined':'Join 2.0$ Channel'}>
+                  {joinChannelCompleted?'☑️':'Go'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
+                <span className="text-white">Invite 1 Friend</span>
+                <button onClick={onInviteFriend} disabled={inviteFriendCompleted} className={`cylindrical-button ziz-zizz-circle p-2 ${inviteFriendCompleted?'bg-[#181818]':'bg-white text-black'}`} aria-label={inviteFriendCompleted?'Friend invited':'Invite a friend'}>
+                  {inviteFriendCompleted?'☑️':'Go'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    function TwoPointZeroApp(){
+      const defaultTasks=[
+        {id:1,name:"Join 2.0$ Channel",reward:1000,completed:false},
+        {id:2,name:"Follow on X",reward:500,completed:false},
+        {id:3,name:"Daily Check-In",reward:200,completed:false}
+      ];
+      const[user,setUser]=useState(null);
+      const[tokens,setTokens]=useState(()=>safeLocalStorage.getItem('tokens',0));
+      const[chatCount,setChatCount]=useState(()=>safeLocalStorage.getItem('chatCount',0));
+      const[tasks,setTasks]=useState(()=>safeLocalStorage.getItem('tasks',defaultTasks));
+      const[referralCount,setReferralCount]=useState(()=>safeLocalStorage.getItem('referralCount',0));
+      const[referredUsers,setReferredUsers]=useState(()=>safeLocalStorage.getItem('referredUsers',[]));
+      const[referralCommissions,setReferralCommissions]=useState(()=>safeLocalStorage.getItem('referralCommissions',0));
+      const[walletConnected,setWalletConnected]=useState(()=>safeLocalStorage.getItem('walletConnected',false));
+      const[airdropClaimed,setAirdropClaimed]=useState(()=>safeLocalStorage.getItem('airdropClaimed',false));
+      const[activeTab,setActiveTab]=useState('home');
+      const[showIntro,setShowIntro]=useState(()=>!safeLocalStorage.getItem('introShown',false));
+      const[showModal,setShowModal]=useState(false);
+      useEffect(()=>{
+        const timeout=setTimeout(()=>{
+          safeLocalStorage.setItem('tokens',Math.floor(tokens));
+          safeLocalStorage.setItem('tasks',tasks);
+          safeLocalStorage.setItem('referralCount',referralCount);
+          safeLocalStorage.setItem('referredUsers',referredUsers);
+          safeLocalStorage.setItem('referralCommissions',referralCommissions);
+          safeLocalStorage.setItem('walletConnected',walletConnected);
+          safeLocalStorage.setItem('airdropClaimed',airdropClaimed);
+          safeLocalStorage.setItem('chatCount',chatCount)
+        },500);
+        return()=>clearTimeout(timeout)
+      },[tokens,tasks,referralCount,referredUsers,referralCommissions,walletConnected,airdropClaimed,chatCount]);
+      useEffect(()=>{
+        try{
+          if(window.Telegram?.WebApp){
+            window.Telegram.WebApp.ready();
+            const initData=window.Telegram.WebApp.initDataUnsafe||{};
+            setUser(sanitizeInitData(initData.user));
+            window.Telegram.WebApp.expand()
+          }else{
+            setUser({username:'Guest',id:generateUUID()});
+            showError('Running in Guest mode. For full features, open in Telegram.')
+          }
+        }catch(e){
+          setUser({username:'Guest',id:generateUUID()});
+          showError('Error initializing Telegram Web App. Running in Guest mode.')
+        }
+        if(!chatCount){
+          try{
+            const randomChats=Math.floor(Math.random()*50)+1;
+            setChatCount(randomChats);
+            setTokens(prev=>prev+randomChats*100)
+          }catch(e){}
+        }
+      },[chatCount]);
+      const completeTask=(taskId)=>{
+        try{
+          setTasks(prevTasks=>prevTasks.map(task=>task.id===taskId?{...task,completed:true}:task));
+          const task=tasks.find(t=>t.id===taskId);
+          if(task&&!task.completed){
+            setTokens(prev=>prev+task.reward)
+          }
+        }catch(e){
+          showError('Failed to complete task. Please try again.')
+        }
+      };
+      const handleJoinChannel=()=>{
+        try{
+          if(window.Telegram?.WebApp?.openTelegramLink){
+            window.Telegram.WebApp.openTelegramLink(CHANNEL_LINK)
+          }else{
+            window.open(CHANNEL_LINK,'_blank')
+          }
+          completeTask(1)
+        }catch(e){
+          showError('Failed to open channel. Please try again.')
+        }
+      };
+      const addReferral=()=>{
+        try{
+          setReferralCount(prev=>prev+1);
+          const newReferralId=`ref_${referralCount+1}_${Date.now()}`;
+          const referralTokens=Math.floor(Math.random()*5000)+1000;
+          const commission=Math.floor(referralTokens*0.1);
+          setReferredUsers(prev=>[...prev,{id:newReferralId,tokens:referralTokens}]);
+          setReferralCommissions(prev=>prev+commission);
+          setTokens(prev=>prev+commission);
+          shareScore(newReferralId)
+        }catch(e){
+          showError('Failed to add referral. Please try again.')
+        }
+      };
+      const shareScore=(referralId='')=>{
+        try{
+          const link=referralId?`t.me${BOT_USERNAME}?start=ref_${referralId}`:`t.me${BOT_USERNAME}?start=ref_${user?.id||'unknown'}`;
+          if(!link.includes(BOT_USERNAME)||!link.includes('start=ref_')){
+            throw new Error('Invalid referral link')
+          }
+          if(!window.Telegram?.WebApp?.openTelegramLink){
+            showError('Sharing is only available in Telegram.');
+            return
+          }
+          const shareText=`I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me: ${link}`;
+          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`)
+        }catch(e){
+          showError('Failed to share referral link. Please try again.')
+        }
+      };
+      const connectWallet=()=>{
+        try{
+          setWalletConnected(true);
+          setTokens(prev=>prev+1000);
+          if(window.Telegram?.WebApp?.showAlert){
+            window.Telegram.WebApp.showAlert('Simulated TON wallet connected!')
+          }else{
+            alert('Simulated TON wallet connected!')
+          }
+        }catch(e){
+          showError('Failed to connect wallet. Please try again.')
+        }
+      };
+      const handleAirdrop=()=>{
+        try{
+          if(airdropClaimed){
+            if(window.Telegram?.WebApp?.showAlert){
+              window.Telegram.WebApp.showAlert('Airdrop already claimed.')
+            }else{
+              alert('Airdrop already claimed.')
+            }
+            return
+          }
+          if(!Array.isArray(tasks)||tasks.length===0){
+            showError('Tasks data is invalid. Please clear localStorage and try again.');
+            return
+          }
+          const joinChannelTask=tasks.find(task=>task.id===1);
+          const joinChannelCompleted=joinChannelTask?joinChannelTask.completed:false;
+          const inviteFriendCompleted=referralCount>0;
+          const criteriaMet=walletConnected&&joinChannelCompleted&&inviteFriendCompleted;
+          if(criteriaMet){
+            setTokens(prev=>prev+5000);
+            setAirdropClaimed(true);
+            if(window.Telegram?.WebApp?.showAlert){
+              window.Telegram.WebApp.showAlert('Airdrop claimed! +5000 $2.0')
+            }else{
+              alert('Airdrop claimed! +5000 $2.0')
+            }
+          }else{
+            const unmetCriteria=[];
+            if(!walletConnected)unmetCriteria.push('Connect Wallet');
+            if(!joinChannelCompleted)unmetCriteria.push('Join 2.0$ Channel');
+            if(!inviteFriendCompleted)unmetCriteria.push('Invite 1 Friend');
+            const message=`Please complete: ${unmetCriteria.join(', ')}.`;
+            if(window.Telegram?.WebApp?.showAlert){
+              window.Telegram.WebApp.showAlert(message)
+            }else{
+              alert(message)
+            }
+          }
+        }catch(e){
+          showError('Failed to process airdrop. Please try again.')
+        }
+      };
+      const toggleModal=()=>{setShowModal(prev=>!prev)};
+      const referralLink=`t.me${BOT_USERNAME}?start=ref_${user?.id||generateUUID()}`;
+      const joinChannelCompleted=tasks.find(task=>task.id===1)?.completed||false;
+      const inviteFriendCompleted=referralCount>0;
+      if(showIntro){
+        return <IntroScreen onComplete={()=>setShowIntro(false)}/>
+      }
+      return(
+        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-16">
+          <div className="flex justify-center mb-4">
+            <div className="rotating-border">
+              <div className="bg-black rounded-full w-28 h-28 flex items-center justify-center text-center shadow-lg">
+                <div>
+                  <p className="text-lg font-bold text-white">{Math.floor(tokens)}</p>
+                  <p className="text-sm text-white">$2.0</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="w-full max-w-md flex justify-between items-center mt-4 mb-4">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold"></h1>
+            </div>
+            <div className="flex space-x-3">
+              <button onClick={()=>shareScore()} className="text-white" title="Share Score" aria-label="Share score">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Share</title>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C9.484 12.542 10.8 12.542 11.6 13.342L15.658 17.4C16.458 18.2 16.458 19.516 15.658 20.316C14.858 21.116 13.542 21.116 12.742 20.316L12 19.574L11.258 20.316C10.458 21.116 9.142 21.116 8.342 20.316C7.542 19.516 7.542 18.2 8.342 17.4L12.4 13.342C13.2 12.542 14.516 12.542 15.316 13.342M12 4V16"/>
+                </svg>
+              </button>
+              <button onClick={toggleModal} className="bg-gray-300 text-black px-3 py-1 rounded text-sm font-medium hover:bg-gray-400 transition" title="Airdrop Criteria" aria-label="Open airdrop criteria modal">
+                Airdrop Criteria
+              </button>
+            </div>
+          </div>
+          <AirdropCriteriaModal
+            isOpen={showModal}
+            onClose={toggleModal}
+            onConnectWallet={connectWallet}
+            onJoinChannel={handleJoinChannel}
+            onInviteFriend={addReferral}
+            walletConnected={walletConnected}
+            joinChannelCompleted={joinChannelCompleted}
+            inviteFriendCompleted={inviteFriendCompleted}
+          />
+          <div className="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4">
+            <p>Chats: {chatCount} | Referrals: {referralCount} | Commissions: {referralCommissions} $2.0</p>
+          </div>
+          <div className="w-full max-w-md">
+            {activeTab==='home'&&(
+              <div className="bg-black rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2"></h3>
+                <button onClick={()=>shareScore()}></button>
+                <div className="mt-4">
+                  <h4 className="text-lg font-bold mb-2">Tasks</h4>
+                  {tasks.map(task=>(
+                    <div key={task.id} className="flex justify-between items-center p-2 bg-[#181818] rounded mb-2">
+                      <span>{task.name} (+{task.reward} $2.0)</span>
+                      {task.id===1?(
+                        <button onClick={handleJoinChannel} disabled={task.completed} className={`px-4 py-1 rounded ${task.completed?'bg-[#181818]':'bg-white'} text-black`} aria-label={task.completed?`${task.name} completed`:`Complete ${task.name}`}>
+                          {task.completed?'☑️':'Go'}
+                        </button>
+                      ):(
+                        <button onClick={()=>completeTask(task.id)} disabled={task.completed} className={`px-4 py-1 rounded ${task.completed?'bg-[#181818]':'bg-white'} text-black`} aria-label={task.completed?`${task.name} completed`:`Complete ${task.name}`}>
+                          {task.completed?'☑️':'Go'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeTab==='referrals'&&(
+              <div className="bg-[#181818] rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2">Referrals</h3>
+                <p>Invite friends to earn 10% of their $2.0 tokens!</p>
+                <p>Referral Count: {referralCount}</p>
+                <p>Total Commissions: {referralCommissions} $2.0</p>
+                {referredUsers.length>0&&Array.isArray(referredUsers)?(
+                  <div className="mt-4">
+                    <h4 className="text-md font-bold mb-2">Referred Users</h4>
+                    {referredUsers.filter(user=>user&&typeof user==='object'&&user.id&&typeof user.tokens==='number').map(user=>(
+                      <div key={user.id} className="p-2 bg-[#282828] rounded mb-2">
+                        <span>User {user.id}: {user.tokens} $2.0</span>
+                      </div>
+                    ))}
+                  </div>
+                ):null}
+                <button onClick={addReferral} className="mt-4 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Invite friends">
+                  Invite Friends
+                </button>
+                <button onClick={()=>shareScore()} className="mt-2 bg-gray-300 text-black px-4 py-2 rounded" aria-label="Share referral link">
+                  Share Referral Link
+                </button>
+              </div>
+            )}
+            {activeTab==='wallet'&&(
+              <div className="bg-[#181818] rounded-lg p-4">
+                <h3 className="text-lg font-bold mb-2">Wallet</h3>
+                {walletConnected?(
+                  <p>TON Wallet Connected!</p>
+                ):(
+                  <button onClick={connectWallet} className="bg-gray-300 text-black px-4 py-2 rounded" aria-label="Connect TON wallet">
+                    Connect TON Wallet
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto">
+            <button className={`p-2 rounded ${activeTab==='referrals'?'bg-black text-black':'text-white'}`} onClick={()=>setActiveTab('referrals')} title="Referrals" aria-label="Navigate to Referrals tab" aria-selected={activeTab==='referrals'}>
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Referrals</title>
+                  <path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              </span>
+            </button>
+            <button className={`p-2 rounded ${activeTab==='home'?'bg-black text-black':'text-white'}`} onClick={()=>setActiveTab('home')} title="Home" aria-label="Navigate to Home tab" aria-selected={activeTab==='home'}>
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Home</title>
+                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1"/>
+                  <circle cx="12" cy="6" r="2"/>
+                  <circle cx="12" cy="12" r="2"/>
+                  <circle cx="12" cy="18" r="2"/>
+                </svg>
+              </span>
+            </button>
+            <button className={`p-2 rounded ${activeTab==='wallet'?'bg-black text-black':'text-white'}`} onClick={()=>setActiveTab('wallet')} title="Wallet" aria-label="Navigate to Wallet tab" aria-selected={activeTab==='wallet'}>
+              <span className="cylindrical-button ziz-zizz-circle">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <title>Wallet</title>
+                  <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+      )
+    }
+    try{
+      if(window.React&&window.ReactDOM&&window.Babel&&document.getElementById('app')){
+        const root=ReactDOM.createRoot(document.getElementById('app'));
+        root.render(
+          <ErrorBoundary>
+            <TwoPointZeroApp/>
+          </ErrorBoundary>
+        )
+      }else{
+        showError('Failed to load required libraries (React, ReactDOM, or Babel) or app container not found.')
+      }
+    }catch(e){
+      showError('Failed to initialize app.')
+    }
+  </script>
+</body>
+</html>
