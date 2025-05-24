@@ -11,6 +11,7 @@
   }
 
   function loadFileData(filename) {
+    // ... (your existing loadFileData function - no changes needed here for referrals)
     if (!window.XLSX) {
       console.error('XLSX library not loaded');
       return '';
@@ -30,7 +31,6 @@
           console.error('No valid data in file');
           return '';
         }
-        // Improved header row detection: check for maximum filled cells or use first row
         let headerRowIndex = 0;
         let maxFilledCells = 0;
         filteredData.forEach((row, index) => {
@@ -58,6 +58,7 @@
   <title>2.0 Mini App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* ... (your existing styles) ... */
     html {
       scroll-behavior: smooth;
     }
@@ -173,11 +174,12 @@
     };
 
     function sanitizeInitData(initData) {
-      if (!initData || typeof initData !== 'object') return { username: 'Guest', id: 'unknown' };
-      const { username, id } = initData;
+      if (!initData || typeof initData !== 'object') return { username: 'Guest', id: 'unknown', start_param: null };
+      const { username, id, start_param } = initData; // Add start_param
       return {
         username: typeof username === 'string' ? username.replace(/[<>&]/g, '') : 'Guest',
         id: typeof id === 'string' || typeof id === 'number' ? String(id).replace(/[<>&]/g, '') : 'unknown',
+        start_param: typeof start_param === 'string' ? start_param.replace(/[<>&]/g, '') : null, // Sanitize start_param
       };
     }
   </script>
@@ -186,6 +188,7 @@
     const { useState, useEffect, Component } = React;
 
     class ErrorBoundary extends Component {
+      // ... (ErrorBoundary component remains the same)
       state = { hasError: false, error: null };
 
       static getDerivedStateFromError(error) {
@@ -208,6 +211,7 @@
     }
 
     function IntroScreen({ onComplete }) {
+      // ... (IntroScreen component remains the same)
       useEffect(() => {
         const timer = setTimeout(() => {
           safeLocalStorage.setItem('introShown', 'true');
@@ -224,6 +228,7 @@
     }
 
     function AirdropCriteriaModal({ isOpen, onClose, onConnectWallet, onJoinChannel, onInviteFriend, walletConnected, joinChannelCompleted, inviteFriendCompleted }) {
+      // ... (AirdropCriteriaModal component remains the same)
       if (!isOpen) return null;
 
       return (
@@ -268,7 +273,7 @@
               <div className="flex justify-between items-center p-2 bg-[#282828] rounded">
                 <span className="text-white">Invite 1 Friend</span>
                 <button
-                  onClick={onInviteFriend}
+                  onClick={onInviteFriend} // This will still simulate adding a friend for criteria completion
                   disabled={inviteFriendCompleted}
                   className={`cylindrical-button ziz-zizz-circle p-2 ${inviteFriendCompleted ? 'bg-[#181818]' : 'bg-white text-black'}`}
                   aria-label={inviteFriendCompleted ? 'Friend invited' : 'Invite a friend'}
@@ -289,18 +294,19 @@
         { id: 3, name: "Daily Check-In", reward: 200, completed: false },
       ];
 
-      const [user, setUser] = useState(null);
+      const [user, setUser] = useState(null); // Will store { username, id, start_param }
       const [tokens, setTokens] = useState(() => safeLocalStorage.getItem('tokens', 0));
       const [chatCount, setChatCount] = useState(() => safeLocalStorage.getItem('chatCount', 0));
       const [tasks, setTasks] = useState(() => safeLocalStorage.getItem('tasks', defaultTasks));
-      const [referralCount, setReferralCount] = useState(() => safeLocalStorage.getItem('referralCount', 0));
-      const [referredUsers, setReferredUsers] = useState(() => safeLocalStorage.getItem('referredUsers', []));
-      const [referralCommissions, setReferralCommissions] = useState(() => safeLocalStorage.getItem('referralCommissions', 0));
+      const [referralCount, setReferralCount] = useState(() => safeLocalStorage.getItem('referralCount', 0)); // For the referrer's view
+      const [referredUsers, setReferredUsers] = useState(() => safeLocalStorage.getItem('referredUsers', [])); // For the referrer's view
+      const [referralCommissions, setReferralCommissions] = useState(() => safeLocalStorage.getItem('referralCommissions', 0)); // For the referrer's view
       const [walletConnected, setWalletConnected] = useState(() => safeLocalStorage.getItem('walletConnected', false));
       const [airdropClaimed, setAirdropClaimed] = useState(() => safeLocalStorage.getItem('airdropClaimed', false));
       const [activeTab, setActiveTab] = useState('home');
       const [showIntro, setShowIntro] = useState(() => !safeLocalStorage.getItem('introShown', false));
       const [showModal, setShowModal] = useState(false);
+      const [wasReferredBy, setWasReferredBy] = useState(() => safeLocalStorage.getItem('wasReferredBy', null)); // Track if THIS user was referred
 
       useEffect(() => {
         const timeout = setTimeout(() => {
@@ -312,48 +318,94 @@
           safeLocalStorage.setItem('walletConnected', walletConnected);
           safeLocalStorage.setItem('airdropClaimed', airdropClaimed);
           safeLocalStorage.setItem('chatCount', chatCount);
+          safeLocalStorage.setItem('wasReferredBy', wasReferredBy);
         }, 500);
         return () => clearTimeout(timeout);
-      }, [tokens, tasks, referralCount, referredUsers, referralCommissions, walletConnected, airdropClaimed, chatCount]);
+      }, [tokens, tasks, referralCount, referredUsers, referralCommissions, walletConnected, airdropClaimed, chatCount, wasReferredBy]);
 
       useEffect(() => {
         console.log('Initializing app...');
+        let initialTokens = tokens; // Keep current tokens
+        let initialChatCount = chatCount;
+
         try {
           if (window.Telegram?.WebApp) {
             console.log('Telegram Web App detected');
             window.Telegram.WebApp.ready();
-            const initData = window.Telegram.WebApp.initDataUnsafe || {};
-            setUser(sanitizeInitData(initData.user));
+            const tg = window.Telegram.WebApp;
+            const initData = tg.initDataUnsafe || {};
+            const currentUser = sanitizeInitData(initData.user); // Gets { username, id }
+            currentUser.start_param = tg.initDataUnsafe.start_param ? sanitizeInitData({start_param: tg.initDataUnsafe.start_param}).start_param : null; // Safely get start_param
+            setUser(currentUser);
             window.Telegram.WebApp.expand();
-            console.log('Telegram Web App initialized:', initData.user);
+            console.log('Telegram Web App initialized:', currentUser);
+
+            // Check if this user was referred (only if they haven't been marked as referred before)
+            if (currentUser.start_param && currentUser.start_param.startsWith('ref_') && !wasReferredBy) {
+              const referrerId = currentUser.start_param.substring(4);
+              console.log(`This user (ID: ${currentUser.id}) was referred by: ${referrerId}`);
+              setWasReferredBy(referrerId); // Mark this user as referred by referrerId
+              
+              const referralBonus = 500; // Bonus for being referred
+              initialTokens += referralBonus; // Add bonus to initial tokens for this session
+              setTokens(prev => prev + referralBonus); // Update state immediately
+
+              if (tg.showAlert) {
+                tg.showAlert(`Welcome! You were referred by user ${referrerId.substring(0,6)}... and received ${referralBonus} $2.0!`);
+              } else {
+                alert(`Welcome! You were referred by user ${referrerId.substring(0,6)}... and received ${referralBonus} $2.0!`);
+              }
+              // IMPORTANT: In a real app with a backend:
+              // At this point, User B's app would send a message to your backend:
+              // "I am User B (ID: ${currentUser.id}), and I was referred by User A (ID: ${referrerId})."
+              // The backend would then update User A's referral count and potential commissions.
+              // User A's app would later fetch this updated data from the backend.
+              // We cannot directly update User A's app from User B's app here.
+            }
+
           } else {
             console.warn('Telegram Web App not detected. Running in browser mode.');
-            setUser({ username: 'Guest', id: 'unknown' });
+            const guestUser = { username: 'Guest', id: 'unknown', start_param: null };
+            // Simulate start_param for browser testing:
+            // const urlParams = new URLSearchParams(window.location.search);
+            // const sp = urlParams.get('startapp'); // if you use ?startapp=ref_test123 for testing
+            // if (sp && sp.startsWith('ref_')) {
+            //    guestUser.start_param = sp;
+            //    // ... and then the referral logic as above ...
+            // }
+            setUser(guestUser);
             showError('Running in Guest mode. For full features, open in Telegram.');
           }
         } catch (e) {
           console.error('Error initializing Telegram Web App:', e);
-          setUser({ username: 'Guest', id: 'unknown' });
+          setUser({ username: 'Guest', id: 'unknown', start_param: null });
           showError('Error initializing Telegram Web App. Running in Guest mode.');
         }
 
-        if (!chatCount) { // Only set initial random chat count and tokens if not already set
+        // Initialize chat count and base tokens only if chatCount is 0 (first time or reset)
+        if (initialChatCount === 0 && !wasReferredBy) { // Don't overwrite if already set or if just got referral bonus
           try {
             console.log('Setting initial chat count and tokens...');
             const randomChats = Math.floor(Math.random() * 50) + 1;
             setChatCount(randomChats);
-            const baseTokens = randomChats * 100; // Example: 100 tokens per chat
-            setTokens(prev => prev + baseTokens); // Add to existing tokens if any, or set if 0
+            const baseTokens = randomChats * 100;
+            setTokens(prev => prev + baseTokens); // Add to existing or set if 0
           } catch (e) {
             console.error('Error setting chat count/tokens:', e);
           }
+        } else {
+            setTokens(initialTokens); // Ensure tokens are set if not modified by chat count logic
+            setChatCount(initialChatCount);
         }
-      }, []); // Removed chatCount from dependencies to ensure it runs only once for initialization
+
+      }, []); // Run only on initial mount
+
 
       const completeTask = (taskId) => {
+        // ... (completeTask logic remains the same)
         try {
           const task = tasks.find(t => t.id === taskId);
-          if (task && !task.completed) { // Check if task exists and not completed before giving reward
+          if (task && !task.completed) {
             setTasks(prevTasks => {
               const updatedTasks = prevTasks.map(t =>
                 t.id === taskId ? { ...t, completed: true } : t
@@ -374,15 +426,14 @@
       };
 
       const handleJoinChannel = () => {
+        // ... (handleJoinChannel logic remains the same)
         try {
-          // TODO: Update this link to the actual "2.0" project's Telegram channel
           const channelLink = 'https://t.me/TwoPointZeroOfficial'; 
           if (window.Telegram?.WebApp?.openTelegramLink) {
             window.Telegram.WebApp.openTelegramLink(channelLink);
           } else {
             window.open(channelLink, '_blank');
           }
-          // Mark task 1 (Join Channel) as completed
           completeTask(1); 
         } catch (e) {
           console.error('Error opening channel link:', e);
@@ -390,39 +441,41 @@
         }
       };
 
-      const addReferral = () => { // This function is more like "Simulate inviting a friend"
+      // This function on THE REFERRER'S side simulates adding a referral to their list.
+      // It's NOT automatically triggered by a new user joining via a link.
+      const addSimulatedReferralToList = () => {
         try {
           setReferralCount(prev => prev + 1);
-          const newReferralId = `ref_${referralCount + 1}_${Date.now()}`;
-          const referralTokens = Math.floor(Math.random() * 5000) + 1000; // Simulated tokens earned by referred user
-          const commission = Math.floor(referralTokens * 0.1); // 10% commission
+          const newReferralId = `sim_ref_${referralCount + 1}_${Date.now()}`;
+          const referralTokens = Math.floor(Math.random() * 5000) + 1000; 
+          const commission = Math.floor(referralTokens * 0.1); 
           setReferredUsers(prev => [
             ...prev,
-            { id: newReferralId, tokens: referralTokens },
+            { id: newReferralId, tokens: referralTokens, type: 'simulated' }, // Mark as simulated
           ]);
           setReferralCommissions(prev => prev + commission);
-          setTokens(prev => prev + commission); // Add commission to inviter's tokens
-          console.log('Referral added:', newReferralId, 'Referred user tokens:', referralTokens, 'Commission earned:', commission);
+          setTokens(prev => prev + commission);
+          console.log('Simulated referral added to list:', newReferralId, 'Commission:', commission);
           if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert('Friend invited simulation! +1 Referral, +' + commission + ' $2.0 commission.');
+            window.Telegram.WebApp.showAlert('Simulated friend added to your list! +' + commission + ' $2.0 commission.');
           } else {
-            alert('Friend invited simulation! +1 Referral, +' + commission + ' $2.0 commission.');
+            alert('Simulated friend added to your list! +' + commission + ' $2.0 commission.');
           }
         } catch (e) {
-          console.error('Error adding referral:', e);
-          showError('Failed to add referral. Please try again.');
+          console.error('Error adding simulated referral:', e);
+          showError('Failed to add simulated referral. Please try again.');
         }
       };
       
-      // This function is for simulating an update from a referred user's activity
       const updateReferralTokens = (referralId) => {
+          // ... (updateReferralTokens logic remains the same, operates on the referrer's list)
         try {
           setReferredUsers(prev => {
             const updatedUsers = prev.map(user => {
               if (user.id === referralId) {
-                const additionalTokens = Math.floor(Math.random() * 2000) + 500; // Simulate referred user earning more
+                const additionalTokens = Math.floor(Math.random() * 2000) + 500;
                 const newTotalTokens = user.tokens + additionalTokens;
-                const newCommission = Math.floor(additionalTokens * 0.1); // Commission on the new earnings
+                const newCommission = Math.floor(additionalTokens * 0.1);
                 
                 setReferralCommissions(prevComm => prevComm + newCommission);
                 setTokens(prevTokens => prevTokens + newCommission);
@@ -440,10 +493,11 @@
       };
 
       const connectWallet = () => {
+        // ... (connectWallet logic remains the same)
         try {
           if (!walletConnected) {
             setWalletConnected(true);
-            setTokens(prev => prev + 1000); // Bonus for connecting wallet
+            setTokens(prev => prev + 1000);
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Simulated TON wallet connected! +1000 $2.0');
             } else {
@@ -463,8 +517,9 @@
         }
       };
 
-      const handleAirdrop = () => { // This is invoked from the main Airdrop button, not the modal
-        try {
+      const handleAirdrop = () => {
+        // ... (handleAirdrop logic remains the same)
+         try {
           if (airdropClaimed) {
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Airdrop already claimed.');
@@ -481,11 +536,12 @@
 
           const joinChannelTask = tasks.find(task => task.id === 1);
           const currentJoinChannelCompleted = joinChannelTask ? joinChannelTask.completed : false;
-          const currentInviteFriendCompleted = referralCount > 0;
+          // For Airdrop, referralCount > 0 means they have invited at least one (simulated or real via backend in future)
+          const currentInviteFriendCompleted = referralCount > 0; 
           const criteriaMet = walletConnected && currentJoinChannelCompleted && currentInviteFriendCompleted;
 
           if (criteriaMet) {
-            setTokens(prev => prev + 5000); // Airdrop reward
+            setTokens(prev => prev + 5000);
             setAirdropClaimed(true);
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Airdrop claimed! +5000 $2.0');
@@ -497,14 +553,13 @@
             const unmetCriteria = [];
             if (!walletConnected) unmetCriteria.push('Connect Wallet');
             if (!currentJoinChannelCompleted) unmetCriteria.push('Join 2.0$ Channel');
-            if (!currentInviteFriendCompleted) unmetCriteria.push('Invite 1 Friend');
+            if (!currentInviteFriendCompleted) unmetCriteria.push('Invite 1 Friend (and have it registered)'); // Updated message
             const message = `Airdrop criteria not met. Please complete: ${unmetCriteria.join(', ')}. Check "Airdrop Criteria" for details.`;
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert(message);
             } else {
               alert(message);
             }
-            // Optionally open the modal if criteria are not met
             setShowModal(true);
           }
         } catch (e) {
@@ -513,21 +568,30 @@
         }
       };
 
-      const shareScore = () => {
+      // This is for the REFERRER to share their link
+      const referralLink = user?.id ? `https://t.me/Twopoint0_bot?start=ref_${user.id}` : 'No referral link (user ID not found)';
+      
+      const shareReferralLink = () => {
         try {
-          const shareText = `I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me: ${referralLink}`;
+          if (!user || !user.id || user.id === 'unknown') {
+             const msg = 'Cannot generate referral link: User ID is not available.';
+             if (window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert(msg); else alert(msg);
+             return;
+          }
+          const shareText = `I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me using my link:`;
+          const fullShareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+
           if (window.Telegram?.WebApp?.openTelegramLink) {
-            window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+            window.Telegram.WebApp.openTelegramLink(fullShareUrl);
           } else {
-             // Fallback for browsers or if Telegram object is not available
-            navigator.clipboard.writeText(shareText + "\n" + referralLink).then(() => {
+            navigator.clipboard.writeText(`${shareText}\n${referralLink}`).then(() => {
                 alert('Referral link copied to clipboard! Share it with your friends.');
             }, () => {
-                alert('Could not copy to clipboard. Please copy manually: ' + shareText + "\n" + referralLink);
+                alert('Could not copy to clipboard. Please copy manually: ' + `${shareText}\n${referralLink}`);
             });
           }
         } catch (e) {
-          console.error('Error sharing score:', e);
+          console.error('Error sharing referral link:', e);
           if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert('Failed to share. Please try again.');
           } else {
@@ -536,12 +600,9 @@
         }
       };
       
-      const inviteFriendAction = () => { // Action for "Invite Friend" button in Airdrop Modal
-        addReferral(); // Simulate adding a referral immediately for simplicity
-        // Or, open share dialog:
-        // shareScore(); 
-        // Then the user would actually share, and backend (if existed) would confirm.
-        // For frontend only, addReferral() simulates the friend joining.
+      // Action for "Invite Friend" button in Airdrop Modal. This will use the simulation.
+      const inviteFriendActionForAirdrop = () => {
+        addSimulatedReferralToList(); 
       };
 
 
@@ -549,18 +610,20 @@
         setShowModal(prev => !prev);
       };
 
-      const referralLink = `https://t.me/Twopoint0_bot?start=ref_${user?.id || 'unknown'}`;
       const joinChannelCompletedByTask = tasks.find(task => task.id === 1)?.completed || false;
-      const inviteFriendCompletedByReferral = referralCount > 0;
+      // For the airdrop criteria, we check if the referrer's *list* has at least one entry (simulated or otherwise)
+      const inviteFriendCompletedByReferralList = referralCount > 0;
+
 
       if (showIntro) {
         return <IntroScreen onComplete={() => setShowIntro(false)} />;
       }
 
       return (
-        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-20"> {/* Increased pb for nav */}
+        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-20">
           {/* Balance Circle */}
           <div className="flex justify-center mb-4 mt-2">
+             {/* ... balance circle ... */}
             <div className="rotating-border">
               <div className="bg-black rounded-full w-28 h-28 flex items-center justify-center text-center shadow-lg">
                 <div>
@@ -573,20 +636,18 @@
 
           {/* Header */}
           <div className="w-full max-w-md flex justify-between items-center mt-4 mb-4">
+            {/* ... header elements ... */}
             <div className="flex items-center">
               <h1 className="text-xl font-bold">2.0 Mini App</h1>
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={shareScore}
+                onClick={shareReferralLink} // Changed to share actual referral link
                 className="text-white p-1"
-                title="Share Score"
-                aria-label="Share score"
+                title="Share Referral Link"
+                aria-label="Share referral link"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <title>Share</title>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.135-5.824-3-7.938l-3 2.647zM12 6a6 6 0 016 6h-4a2 2 0 00-2-2V6zm-6 6a6 6 0 016-6v4a2 2 0 00-2 2H6zm2 7.291A5.962 5.962 0 016 12H2c0 3.042 1.135 5.824 3 7.938l3-2.647zM18 12a5.962 5.962 0 01-3 5.291l3 2.647A10.001 10.001 0 0022 12h-4z"></path> {/* More distinct share icon */}
-                </svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Share</title><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.135-5.824-3-7.938l-3 2.647zM12 6a6 6 0 016 6h-4a2 2 0 00-2-2V6zm-6 6a6 6 0 016-6v4a2 2 0 00-2 2H6zm2 7.291A5.962 5.962 0 016 12H2c0 3.042 1.135 5.824 3 7.938l3-2.647zM18 12a5.962 5.962 0 01-3 5.291l3 2.647A10.001 10.001 0 0022 12h-4z"></path></svg>
               </button>
               <button
                 onClick={toggleModal}
@@ -599,7 +660,7 @@
             </div>
           </div>
           
-          {/* Airdrop Claim Button - Placed prominently */}
+          {/* Airdrop Claim Button */}
           <button
             onClick={handleAirdrop}
             disabled={airdropClaimed}
@@ -612,31 +673,32 @@
             {airdropClaimed ? 'Airdrop Claimed! 🎉' : 'Claim Your $2.0 Airdrop!'}
           </button>
 
-
           {/* Airdrop Criteria Modal */}
           <AirdropCriteriaModal
             isOpen={showModal}
             onClose={toggleModal}
             onConnectWallet={connectWallet}
             onJoinChannel={handleJoinChannel}
-            onInviteFriend={inviteFriendAction} // Use dedicated action for modal's invite button
+            onInviteFriend={inviteFriendActionForAirdrop} // This still uses simulation for criteria
             walletConnected={walletConnected}
             joinChannelCompleted={joinChannelCompletedByTask}
-            inviteFriendCompleted={inviteFriendCompletedByReferral}
+            inviteFriendCompleted={inviteFriendCompletedByReferralList}
           />
 
           {/* User Info */}
           <div className="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4 text-sm">
-            <p>Chat Activity: {chatCount} messages</p>
-            <p>Referrals: {referralCount} | Commissions: {referralCommissions} $2.0</p>
             {user && <p className="truncate">User: {user.username} (ID: {user.id})</p>}
+            {wasReferredBy && <p className="text-green-400">You were referred by: {wasReferredBy.substring(0,10)}...</p>}
+            <p>Chat Activity: {chatCount} messages</p>
+            <p>Your Referrals (Count): {referralCount} | Commissions from them: {referralCommissions} $2.0</p>
           </div>
 
           {/* Tab Content */}
           <div className="w-full max-w-md">
             {activeTab === 'home' && (
+              // ... Home tab content remains largely the same ...
               <div className="bg-black rounded-lg p-4">
-                <div className="mt-0"> {/* Removed redundant mt-4 */}
+                <div className="mt-0">
                   <h3 className="text-lg font-bold mb-2">Tasks for $2.0</h3>
                   {tasks.map(task => (
                     <div
@@ -644,7 +706,7 @@
                       className="flex justify-between items-center p-3 bg-[#181818] rounded mb-2"
                     >
                       <span className="text-sm">{task.name} (+{task.reward} $2.0)</span>
-                      {task.id === 1 ? ( // Special handling for Join Channel task
+                      {task.id === 1 ? (
                         <button
                           onClick={handleJoinChannel}
                           disabled={task.completed}
@@ -670,15 +732,31 @@
             )}
             {activeTab === 'referrals' && (
               <div className="bg-[#181818] rounded-lg p-4">
-                <h3 className="text-lg font-bold mb-2">Referrals</h3>
+                <h3 className="text-lg font-bold mb-2">Your Referrals</h3>
                 <p className="text-sm mb-1">Invite friends to earn 10% of their $2.0 tokens as commission!</p>
-                <p className="text-sm mb-1">Your Referral Link: <button onClick={() => navigator.clipboard.writeText(referralLink).then(() => alert('Referral link copied!'))} className="text-yellow-400 underline ml-1">Copy Link</button></p>
-                <p className="text-sm mb-1">Referral Count: {referralCount}</p>
-                <p className="text-sm mb-3">Total Commissions: {referralCommissions} $2.0</p>
+                <p className="text-sm mb-1">Your Referral Link: 
+                  {user?.id && user.id !== 'unknown' ? (
+                    <button 
+                      onClick={() => navigator.clipboard.writeText(referralLink).then(() => {
+                        if(window.Telegram?.WebApp?.showAlert) window.Telegram.WebApp.showAlert('Referral link copied!');
+                        else alert('Referral link copied!');
+                      })} 
+                      className="text-yellow-400 underline ml-1"
+                    >
+                      Copy Link
+                    </button>
+                  ) : (
+                    <span className="text-gray-500 ml-1">(Generate by being in Telegram)</span>
+                  )}
+                </p>
+                <p className="text-sm mb-1">Referral Count (on your list): {referralCount}</p>
+                <p className="text-sm mb-3">Total Commissions Earned: {referralCommissions} $2.0</p>
                 
+                <p className="text-xs text-gray-400 mt-2 mb-2">Note: The list below shows simulated referrals you've added. In a full app with a backend, this list would update when new users join via your link and the backend confirms it.</p>
+
                 {referredUsers.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="text-md font-bold mb-2">Referred Users Activity (Simulated)</h4>
+                    <h4 className="text-md font-bold mb-2">Your Referred Users List (Simulated Entries)</h4>
                     {referredUsers.map(refUser => (
                       <div key={refUser.id} className="flex justify-between items-center p-2 bg-[#282828] rounded mb-2 text-sm">
                         <span>User {refUser.id.substring(0,10)}...: {refUser.tokens} $2.0</span>
@@ -694,15 +772,23 @@
                   </div>
                 )}
                 <button
-                  onClick={shareScore} // Changed from addReferral to directly open share dialog
+                  onClick={shareReferralLink}
                   className="mt-4 w-full bg-yellow-500 text-black px-4 py-2 rounded hover:bg-yellow-600 transition"
-                  aria-label="Invite Friends"
+                  aria-label="Share Your Referral Link"
                 >
-                  Invite Friends & Share
+                  Share Your Referral Link
+                </button>
+                <button
+                  onClick={addSimulatedReferralToList}
+                  className="mt-2 w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+                  aria-label="Add a Simulated Referral to Your List"
+                >
+                  Add Simulated Referral to My List (For Testing)
                 </button>
               </div>
             )}
             {activeTab === 'wallet' && (
+              // ... Wallet tab content remains the same ...
               <div className="bg-[#181818] rounded-lg p-4">
                 <h3 className="text-lg font-bold mb-2">Wallet</h3>
                 {walletConnected ? (
@@ -726,6 +812,7 @@
 
           {/* Bottom Navigation */}
           <div className="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto border-t border-gray-700">
+            {/* ... Bottom navigation buttons remain the same ... */}
             <button
               className={`flex flex-col items-center p-2 rounded w-1/3 ${activeTab === 'referrals' ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
               onClick={() => setActiveTab('referrals')}
@@ -777,6 +864,7 @@
     }
 
     try {
+      // ... (React rendering logic remains the same)
       if (window.React && window.ReactDOM && window.Babel && document.getElementById('app')) {
         console.log('Rendering app...');
         const root = ReactDOM.createRoot(document.getElementById('app'));
