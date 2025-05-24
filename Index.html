@@ -337,31 +337,35 @@
           showError('Error initializing Telegram Web App. Running in Guest mode.');
         }
 
-        if (!chatCount) {
+        if (!chatCount) { // Only set initial random chat count and tokens if not already set
           try {
             console.log('Setting initial chat count and tokens...');
             const randomChats = Math.floor(Math.random() * 50) + 1;
             setChatCount(randomChats);
-            const baseTokens = randomChats * 100;
-            setTokens(prev => prev + baseTokens);
+            const baseTokens = randomChats * 100; // Example: 100 tokens per chat
+            setTokens(prev => prev + baseTokens); // Add to existing tokens if any, or set if 0
           } catch (e) {
             console.error('Error setting chat count/tokens:', e);
           }
         }
-      }, [chatCount]);
+      }, []); // Removed chatCount from dependencies to ensure it runs only once for initialization
 
       const completeTask = (taskId) => {
         try {
-          setTasks(prevTasks => {
-            const updatedTasks = prevTasks.map(task =>
-              task.id === taskId ? { ...task, completed: true } : task
-            );
-            return updatedTasks;
-          });
           const task = tasks.find(t => t.id === taskId);
-          if (task && !task.completed) {
+          if (task && !task.completed) { // Check if task exists and not completed before giving reward
+            setTasks(prevTasks => {
+              const updatedTasks = prevTasks.map(t =>
+                t.id === taskId ? { ...t, completed: true } : t
+              );
+              return updatedTasks;
+            });
             setTokens(prev => prev + task.reward);
             console.log('Task completed:', taskId, 'Reward:', task.reward);
+          } else if (task && task.completed) {
+             console.log('Task already completed:', taskId);
+          } else {
+            console.warn('Task not found:', taskId);
           }
         } catch (e) {
           console.error('Error completing task:', e);
@@ -371,51 +375,59 @@
 
       const handleJoinChannel = () => {
         try {
-          const channelLink = 'https://t.me/kingcrypto_real';
+          // TODO: Update this link to the actual "2.0" project's Telegram channel
+          const channelLink = 'https://t.me/TwoPointZeroOfficial'; 
           if (window.Telegram?.WebApp?.openTelegramLink) {
             window.Telegram.WebApp.openTelegramLink(channelLink);
           } else {
             window.open(channelLink, '_blank');
           }
-          completeTask(1);
+          // Mark task 1 (Join Channel) as completed
+          completeTask(1); 
         } catch (e) {
           console.error('Error opening channel link:', e);
           showError('Failed to open channel. Please try again.');
         }
       };
 
-      const addReferral = () => {
+      const addReferral = () => { // This function is more like "Simulate inviting a friend"
         try {
           setReferralCount(prev => prev + 1);
           const newReferralId = `ref_${referralCount + 1}_${Date.now()}`;
-          const referralTokens = Math.floor(Math.random() * 5000) + 1000;
-          const commission = Math.floor(referralTokens * 0.1);
+          const referralTokens = Math.floor(Math.random() * 5000) + 1000; // Simulated tokens earned by referred user
+          const commission = Math.floor(referralTokens * 0.1); // 10% commission
           setReferredUsers(prev => [
             ...prev,
             { id: newReferralId, tokens: referralTokens },
           ]);
           setReferralCommissions(prev => prev + commission);
-          setTokens(prev => prev + commission);
-          console.log('Referral added:', newReferralId, 'Referral tokens:', referralTokens, 'Commission:', commission);
+          setTokens(prev => prev + commission); // Add commission to inviter's tokens
+          console.log('Referral added:', newReferralId, 'Referred user tokens:', referralTokens, 'Commission earned:', commission);
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert('Friend invited simulation! +1 Referral, +' + commission + ' $2.0 commission.');
+          } else {
+            alert('Friend invited simulation! +1 Referral, +' + commission + ' $2.0 commission.');
+          }
         } catch (e) {
           console.error('Error adding referral:', e);
           showError('Failed to add referral. Please try again.');
         }
       };
-
+      
+      // This function is for simulating an update from a referred user's activity
       const updateReferralTokens = (referralId) => {
         try {
           setReferredUsers(prev => {
             const updatedUsers = prev.map(user => {
               if (user.id === referralId) {
-                const newTokens = Math.floor(Math.random() * 5000) + 1000;
-                const oldCommission = Math.floor(user.tokens * 0.1);
-                const newCommission = Math.floor(newTokens * 0.1);
-                const commissionDiff = newCommission - oldCommission;
-                setReferralCommissions(prevComm => prevComm + commissionDiff);
-                setTokens(prevTokens => prevTokens + commissionDiff);
-                console.log('Updated referral:', referralId, 'New tokens:', newTokens, 'Commission added:', commissionDiff);
-                return { ...user, tokens: newTokens };
+                const additionalTokens = Math.floor(Math.random() * 2000) + 500; // Simulate referred user earning more
+                const newTotalTokens = user.tokens + additionalTokens;
+                const newCommission = Math.floor(additionalTokens * 0.1); // Commission on the new earnings
+                
+                setReferralCommissions(prevComm => prevComm + newCommission);
+                setTokens(prevTokens => prevTokens + newCommission);
+                console.log('Updated referral:', referralId, 'Additional tokens by referred:', additionalTokens, 'Commission added:', newCommission);
+                return { ...user, tokens: newTotalTokens };
               }
               return user;
             });
@@ -429,21 +441,29 @@
 
       const connectWallet = () => {
         try {
-          setWalletConnected(true);
-          setTokens(prev => prev + 1000);
-          if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert('Simulated TON wallet connected!');
+          if (!walletConnected) {
+            setWalletConnected(true);
+            setTokens(prev => prev + 1000); // Bonus for connecting wallet
+            if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert('Simulated TON wallet connected! +1000 $2.0');
+            } else {
+              alert('Simulated TON wallet connected! +1000 $2.0');
+            }
+            console.log('Wallet connected, +1000 $2.0');
           } else {
-            alert('Simulated TON wallet connected!');
+            if (window.Telegram?.WebApp?.showAlert) {
+              window.Telegram.WebApp.showAlert('Wallet already connected.');
+            } else {
+              alert('Wallet already connected.');
+            }
           }
-          console.log('Wallet connected, +1000 $2.0');
         } catch (e) {
           console.error('Error connecting wallet:', e);
           showError('Failed to connect wallet. Please try again.');
         }
       };
 
-      const handleAirdrop = () => {
+      const handleAirdrop = () => { // This is invoked from the main Airdrop button, not the modal
         try {
           if (airdropClaimed) {
             if (window.Telegram?.WebApp?.showAlert) {
@@ -460,12 +480,12 @@
           }
 
           const joinChannelTask = tasks.find(task => task.id === 1);
-          const joinChannelCompleted = joinChannelTask ? joinChannelTask.completed : false;
-          const inviteFriendCompleted = referralCount > 0;
-          const criteriaMet = walletConnected && joinChannelCompleted && inviteFriendCompleted;
+          const currentJoinChannelCompleted = joinChannelTask ? joinChannelTask.completed : false;
+          const currentInviteFriendCompleted = referralCount > 0;
+          const criteriaMet = walletConnected && currentJoinChannelCompleted && currentInviteFriendCompleted;
 
           if (criteriaMet) {
-            setTokens(prev => prev + 5000);
+            setTokens(prev => prev + 5000); // Airdrop reward
             setAirdropClaimed(true);
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert('Airdrop claimed! +5000 $2.0');
@@ -476,14 +496,16 @@
           } else {
             const unmetCriteria = [];
             if (!walletConnected) unmetCriteria.push('Connect Wallet');
-            if (!joinChannelCompleted) unmetCriteria.push('Join 2.0$ Channel');
-            if (!inviteFriendCompleted) unmetCriteria.push('Invite 1 Friend');
-            const message = `Please complete: ${unmetCriteria.join(', ')}.`;
+            if (!currentJoinChannelCompleted) unmetCriteria.push('Join 2.0$ Channel');
+            if (!currentInviteFriendCompleted) unmetCriteria.push('Invite 1 Friend');
+            const message = `Airdrop criteria not met. Please complete: ${unmetCriteria.join(', ')}. Check "Airdrop Criteria" for details.`;
             if (window.Telegram?.WebApp?.showAlert) {
               window.Telegram.WebApp.showAlert(message);
             } else {
               alert(message);
             }
+            // Optionally open the modal if criteria are not met
+            setShowModal(true);
           }
         } catch (e) {
           console.error('Error processing airdrop:', e);
@@ -493,38 +515,52 @@
 
       const shareScore = () => {
         try {
-          if (!window.Telegram?.WebApp?.openTelegramLink) {
-            alert('Sharing is only available in Telegram.');
-            return;
-          }
           const shareText = `I have ${Math.floor(tokens)} $2.0 in the 2.0 Mini App! Join me: ${referralLink}`;
-          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+          if (window.Telegram?.WebApp?.openTelegramLink) {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`);
+          } else {
+             // Fallback for browsers or if Telegram object is not available
+            navigator.clipboard.writeText(shareText + "\n" + referralLink).then(() => {
+                alert('Referral link copied to clipboard! Share it with your friends.');
+            }, () => {
+                alert('Could not copy to clipboard. Please copy manually: ' + shareText + "\n" + referralLink);
+            });
+          }
         } catch (e) {
           console.error('Error sharing score:', e);
           if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert('Failed to share. Please try again.');
           } else {
-            alert('Failed to share. Please try in Telegram.');
+            alert('Failed to share. Please try again or copy the link manually.');
           }
         }
       };
+      
+      const inviteFriendAction = () => { // Action for "Invite Friend" button in Airdrop Modal
+        addReferral(); // Simulate adding a referral immediately for simplicity
+        // Or, open share dialog:
+        // shareScore(); 
+        // Then the user would actually share, and backend (if existed) would confirm.
+        // For frontend only, addReferral() simulates the friend joining.
+      };
+
 
       const toggleModal = () => {
         setShowModal(prev => !prev);
       };
 
       const referralLink = `https://t.me/Twopoint0_bot?start=ref_${user?.id || 'unknown'}`;
-      const joinChannelCompleted = tasks.find(task => task.id === 1)?.completed || false;
-      const inviteFriendCompleted = referralCount > 0;
+      const joinChannelCompletedByTask = tasks.find(task => task.id === 1)?.completed || false;
+      const inviteFriendCompletedByReferral = referralCount > 0;
 
       if (showIntro) {
         return <IntroScreen onComplete={() => setShowIntro(false)} />;
       }
 
       return (
-        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-16">
+        <div className="min-h-screen text-white flex flex-col items-center p-4 pb-20"> {/* Increased pb for nav */}
           {/* Balance Circle */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 mt-2">
             <div className="rotating-border">
               <div className="bg-black rounded-full w-28 h-28 flex items-center justify-center text-center shadow-lg">
                 <div>
@@ -538,18 +574,18 @@
           {/* Header */}
           <div className="w-full max-w-md flex justify-between items-center mt-4 mb-4">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold">2.0 Mini App</h1> {/* MODIFIED: Added title */}
+              <h1 className="text-xl font-bold">2.0 Mini App</h1>
             </div>
             <div className="flex space-x-3">
               <button
                 onClick={shareScore}
-                className="text-white"
+                className="text-white p-1"
                 title="Share Score"
                 aria-label="Share score"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <title>Share</title>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C9.484 12.542 10.8 12.542 11.6 13.342L15.658 17.4C16.458 18.2 16.458 19.516 15.658 20.316C14.858 21.116 13.542 21.116 12.742 20.316L12 19.574L11.258 20.316C10.458 21.116 9.142 21.116 8.342 20.316C7.542 19.516 7.542 18.2 8.342 17.4L12.4 13.342C13.2 12.542 14.516 12.542 15.316 13.342M12 4V16" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.135-5.824-3-7.938l-3 2.647zM12 6a6 6 0 016 6h-4a2 2 0 00-2-2V6zm-6 6a6 6 0 016-6v4a2 2 0 00-2 2H6zm2 7.291A5.962 5.962 0 016 12H2c0 3.042 1.135 5.824 3 7.938l3-2.647zM18 12a5.962 5.962 0 01-3 5.291l3 2.647A10.001 10.001 0 0022 12h-4z"></path> {/* More distinct share icon */}
                 </svg>
               </button>
               <button
@@ -562,6 +598,20 @@
               </button>
             </div>
           </div>
+          
+          {/* Airdrop Claim Button - Placed prominently */}
+          <button
+            onClick={handleAirdrop}
+            disabled={airdropClaimed}
+            className={`w-full max-w-md py-3 px-4 rounded text-lg font-semibold mb-4 transition ${
+              airdropClaimed
+                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : 'bg-yellow-500 hover:bg-yellow-600 text-black'
+            }`}
+          >
+            {airdropClaimed ? 'Airdrop Claimed! 🎉' : 'Claim Your $2.0 Airdrop!'}
+          </button>
+
 
           {/* Airdrop Criteria Modal */}
           <AirdropCriteriaModal
@@ -569,47 +619,48 @@
             onClose={toggleModal}
             onConnectWallet={connectWallet}
             onJoinChannel={handleJoinChannel}
-            onInviteFriend={addReferral}
+            onInviteFriend={inviteFriendAction} // Use dedicated action for modal's invite button
             walletConnected={walletConnected}
-            joinChannelCompleted={joinChannelCompleted}
-            inviteFriendCompleted={inviteFriendCompleted}
+            joinChannelCompleted={joinChannelCompletedByTask}
+            inviteFriendCompleted={inviteFriendCompletedByReferral}
           />
 
           {/* User Info */}
-          <div className="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4">
-            <p>Chats: {chatCount} | Referrals: {referralCount} | Commissions: {referralCommissions} $2.0</p>
+          <div className="w-full max-w-md bg-[#181818] rounded-lg p-4 mb-4 text-sm">
+            <p>Chat Activity: {chatCount} messages</p>
+            <p>Referrals: {referralCount} | Commissions: {referralCommissions} $2.0</p>
+            {user && <p className="truncate">User: {user.username} (ID: {user.id})</p>}
           </div>
 
           {/* Tab Content */}
           <div className="w-full max-w-md">
             {activeTab === 'home' && (
               <div className="bg-black rounded-lg p-4">
-                {/* MODIFIED: Removed empty h3 and button. Promoted Tasks to h3 */}
-                <div className="mt-4">
-                  <h3 className="text-lg font-bold mb-2">Tasks</h3>
+                <div className="mt-0"> {/* Removed redundant mt-4 */}
+                  <h3 className="text-lg font-bold mb-2">Tasks for $2.0</h3>
                   {tasks.map(task => (
                     <div
                       key={task.id}
-                      className="flex justify-between items-center p-2 bg-[#181818] rounded mb-2"
+                      className="flex justify-between items-center p-3 bg-[#181818] rounded mb-2"
                     >
-                      <span>{task.name} (+{task.reward} $2.0)</span>
-                      {task.id === 1 ? (
+                      <span className="text-sm">{task.name} (+{task.reward} $2.0)</span>
+                      {task.id === 1 ? ( // Special handling for Join Channel task
                         <button
                           onClick={handleJoinChannel}
                           disabled={task.completed}
-                          className={`px-4 py-1 rounded ${task.completed ? 'bg-[#181818]' : 'bg-white'} text-black`}
+                          className={`px-4 py-1 rounded text-sm ${task.completed ? 'bg-green-700 text-white cursor-default' : 'bg-white text-black hover:bg-gray-200'}`}
                           aria-label={task.completed ? `${task.name} completed` : `Complete ${task.name}`}
                         >
-                          {task.completed ? '☑️' : 'Go'}
+                          {task.completed ? '☑️ Done' : 'Go'}
                         </button>
                       ) : (
                         <button
                           onClick={() => completeTask(task.id)}
                           disabled={task.completed}
-                          className={`px-4 py-1 rounded ${task.completed ? 'bg-[#181818]' : 'bg-white'} text-black`}
+                          className={`px-4 py-1 rounded text-sm ${task.completed ? 'bg-green-700 text-white cursor-default' : 'bg-white text-black hover:bg-gray-200'}`}
                           aria-label={task.completed ? `${task.name} completed` : `Complete ${task.name}`}
                         >
-                          {task.completed ? '☑️' : 'Go'}
+                          {task.completed ? '☑️ Done' : 'Go'}
                         </button>
                       )}
                     </div>
@@ -620,39 +671,34 @@
             {activeTab === 'referrals' && (
               <div className="bg-[#181818] rounded-lg p-4">
                 <h3 className="text-lg font-bold mb-2">Referrals</h3>
-                <p>Invite friends to earn 10% of their $2.0 tokens!</p>
-                <p>Referral Count: {referralCount}</p>
-                <p>Total Commissions: {referralCommissions} $2.0</p>
+                <p className="text-sm mb-1">Invite friends to earn 10% of their $2.0 tokens as commission!</p>
+                <p className="text-sm mb-1">Your Referral Link: <button onClick={() => navigator.clipboard.writeText(referralLink).then(() => alert('Referral link copied!'))} className="text-yellow-400 underline ml-1">Copy Link</button></p>
+                <p className="text-sm mb-1">Referral Count: {referralCount}</p>
+                <p className="text-sm mb-3">Total Commissions: {referralCommissions} $2.0</p>
+                
                 {referredUsers.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="text-md font-bold mb-2">Referred Users</h4>
-                    {referredUsers.map(user => (
-                      <div key={user.id} className="flex justify-between items-center p-2 bg-[#282828] rounded mb-2">
-                        <span>User {user.id}: {user.tokens} $2.0</span>
+                    <h4 className="text-md font-bold mb-2">Referred Users Activity (Simulated)</h4>
+                    {referredUsers.map(refUser => (
+                      <div key={refUser.id} className="flex justify-between items-center p-2 bg-[#282828] rounded mb-2 text-sm">
+                        <span>User {refUser.id.substring(0,10)}...: {refUser.tokens} $2.0</span>
                         <button
-                          onClick={() => updateReferralTokens(user.id)}
-                          className="px-4 py-1 bg-gray-300 text-black rounded"
-                          aria-label={`Update tokens for user ${user.id}`}
+                          onClick={() => updateReferralTokens(refUser.id)}
+                          className="px-3 py-1 bg-gray-300 text-black rounded text-xs"
+                          aria-label={`Simulate activity for user ${refUser.id}`}
                         >
-                          Update Tokens
+                          Simulate Activity
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
                 <button
-                  onClick={addReferral}
-                  className="mt-4 bg-gray-300 text-black px-4 py-2 rounded"
-                  aria-label="Invite friends"
+                  onClick={shareScore} // Changed from addReferral to directly open share dialog
+                  className="mt-4 w-full bg-yellow-500 text-black px-4 py-2 rounded hover:bg-yellow-600 transition"
+                  aria-label="Invite Friends"
                 >
-                  Invite Friends
-                </button>
-                <button
-                  onClick={shareScore}
-                  className="mt-2 bg-gray-300 text-black px-4 py-2 rounded"
-                  aria-label="Share referral link"
-                >
-                  Share Referral Link
+                  Invite Friends & Share
                 </button>
               </div>
             )}
@@ -660,67 +706,70 @@
               <div className="bg-[#181818] rounded-lg p-4">
                 <h3 className="text-lg font-bold mb-2">Wallet</h3>
                 {walletConnected ? (
-                  <p>TON Wallet Connected!</p>
+                  <p className="text-green-400">TON Wallet Connected (Simulated)!</p>
                 ) : (
                   <button
                     onClick={connectWallet}
-                    className="bg-gray-300 text-black px-4 py-2 rounded"
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
                     aria-label="Connect TON wallet"
                   >
-                    Connect TON Wallet
+                    Connect TON Wallet (+1000 $2.0)
                   </button>
                 )}
+                <div className="mt-4 text-sm">
+                    <p>This is a simulated wallet connection for demonstration purposes.</p>
+                    <p>In a real application, this would integrate with a TON wallet provider.</p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Bottom Navigation */}
-          <div className="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto">
-            {/* MODIFIED: Changed active tab style */}
+          <div className="fixed bottom-0 left-0 right-0 bg-[#181818] p-2 flex justify-around w-full max-w-md mx-auto border-t border-gray-700">
             <button
-              className={`p-2 rounded ${activeTab === 'referrals' ? 'bg-gray-600 text-white' : 'text-white'}`}
+              className={`flex flex-col items-center p-2 rounded w-1/3 ${activeTab === 'referrals' ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
               onClick={() => setActiveTab('referrals')}
               title="Referrals"
               aria-label="Navigate to Referrals tab"
               aria-selected={activeTab === 'referrals'}
             >
-              <span className="cylindrical-button ziz-zizz-circle">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <span className={`cylindrical-button ziz-zizz-circle ${activeTab === 'referrals' ? 'bg-yellow-500' : ''}`}>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <title>Referrals</title>
                   <path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
                 </svg>
               </span>
+              <span className="text-xs mt-1">Referrals</span>
             </button>
             <button
-              className={`p-2 rounded ${activeTab === 'home' ? 'bg-gray-600 text-white' : 'text-white'}`}
+              className={`flex flex-col items-center p-2 rounded w-1/3 ${activeTab === 'home' ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
               onClick={() => setActiveTab('home')}
               title="Home"
               aria-label="Navigate to Home tab"
               aria-selected={activeTab === 'home'}
             >
-              <span className="cylindrical-button ziz-zizz-circle">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <title>Home</title>
-                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1" />
-                  <circle cx="12" cy="6" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="12" cy="18" r="2" />
+              <span className={`cylindrical-button ziz-zizz-circle ${activeTab === 'home' ? 'bg-yellow-500' : ''}`}>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                   <title>Home</title>
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                 </svg>
               </span>
+              <span className="text-xs mt-1">Home</span>
             </button>
             <button
-              className={`p-2 rounded ${activeTab === 'wallet' ? 'bg-gray-600 text-white' : 'text-white'}`}
+              className={`flex flex-col items-center p-2 rounded w-1/3 ${activeTab === 'wallet' ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
               onClick={() => setActiveTab('wallet')}
               title="Wallet"
               aria-label="Navigate to Wallet tab"
               aria-selected={activeTab === 'wallet'}
             >
-              <span className="cylindrical-button ziz-zizz-circle">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <span className={`cylindrical-button ziz-zizz-circle ${activeTab === 'wallet' ? 'bg-yellow-500' : ''}`}>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <title>Wallet</title>
                   <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
                 </svg>
               </span>
+              <span className="text-xs mt-1">Wallet</span>
             </button>
           </div>
         </div>
@@ -737,11 +786,16 @@
           </ErrorBoundary>
         );
       } else {
-        showError('Failed to load required libraries (React, ReactDOM, or Babel) or app container not found. Please refresh the page.');
+        let missing = [];
+        if (!window.React) missing.push("React");
+        if (!window.ReactDOM) missing.push("ReactDOM");
+        if (!window.Babel) missing.push("Babel");
+        if (!document.getElementById('app')) missing.push("App container (#app)");
+        showError(`Failed to load required libraries (${missing.join(', ')}). Please refresh the page or check console.`);
       }
     } catch (e) {
       console.error('Error rendering app:', e);
-      showError('Failed to initialize app. Please refresh the page.');
+      showError('Failed to initialize app. Please refresh the page. Check console for details.');
     }
   </script>
 </body>
